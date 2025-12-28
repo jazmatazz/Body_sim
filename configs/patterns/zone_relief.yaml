@@ -1,0 +1,83 @@
+# Zone-Based Pressure Relief Pattern
+# Independent control of body region zones
+
+pattern:
+  name: "Zone-Based Pressure Relief"
+  type: zone
+  description: |
+    Advanced pattern with independent control of different body regions.
+    Allows targeting high-risk areas (sacrum, heels) with more aggressive
+    pressure relief while maintaining stable support in other areas.
+
+  # Timing
+  cycle_duration: 30.0  # Longer cycle for complex pattern
+
+  # Zone definitions
+  # Row positions as fractions of mattress length (0 = head, 1 = foot)
+  zones:
+    head:
+      row_start: 0.0
+      row_end: 0.12
+      type: constant
+      height: 0.7
+      description: "Stable support for head"
+
+    shoulders:
+      row_start: 0.12
+      row_end: 0.25
+      type: alternating
+      height: 0.8
+      phase_offset: 0.0
+      description: "Moderate alternating for shoulders"
+
+    upper_back:
+      row_start: 0.25
+      row_end: 0.40
+      type: alternating
+      height: 0.8
+      phase_offset: 0.25
+      description: "Phased alternating for upper back"
+
+    lower_back_sacrum:
+      row_start: 0.40
+      row_end: 0.60
+      type: alternating
+      height: 0.7
+      phase_offset: 0.5
+      low_height: 0.25  # Lower minimum for high-risk sacral area
+      description: "Aggressive relief for sacral region"
+
+    hips_thighs:
+      row_start: 0.60
+      row_end: 0.80
+      type: alternating
+      height: 0.8
+      phase_offset: 0.75
+      description: "Standard alternating for hips and thighs"
+
+    lower_legs:
+      row_start: 0.80
+      row_end: 0.92
+      type: wave
+      height: 0.6
+      wavelength: 2
+      description: "Gentle wave for lower legs"
+
+    heels:
+      row_start: 0.92
+      row_end: 1.0
+      type: constant
+      height: 0.95
+      description: "Maximum height to offload heels"
+
+# Clinical notes
+clinical:
+  indication: "High-risk patients with specific pressure points"
+  recommended_for:
+    - "Patients with existing sacral pressure injuries"
+    - "Patients with heel pressure concerns"
+    - "Post-surgical patients with limited mobility"
+  notes: |
+    - Heel zone maintained at high pressure to minimize contact
+    - Sacral zone has most aggressive alternating pattern
+    - Phase offsets prevent simultaneous deflation of adjacent zones

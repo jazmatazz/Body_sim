@@ -1,0 +1,36 @@
+# Wave Propagation Pattern
+# Sinusoidal wave traveling along mattress length
+
+pattern:
+  name: "Wave Propagation"
+  type: wave
+  description: |
+    Sinusoidal wave pattern that travels from head to foot (or reverse),
+    creating a massage-like effect while redistributing pressure.
+    Useful for promoting circulation and comfort.
+
+  # Timing
+  cycle_duration: 20.0  # Seconds for wave to complete one pass
+
+  # Wave parameters
+  wave:
+    direction: "head_to_foot"  # Options: head_to_foot, foot_to_head
+    wavelength: 4.0            # Cell units (longer = gentler wave)
+    amplitude: 0.35            # Height variation (0-0.5)
+    baseline: 0.65             # Base height level (0-1)
+
+  # Optional bidirectional mode for massage effect
+  bidirectional:
+    enabled: false
+    secondary_wavelength: 6.0
+    phase_offset: 0.5
+
+# Clinical notes
+clinical:
+  indication: "Circulation promotion and comfort"
+  recommended_for:
+    - "Patients who can tolerate gentle movement"
+    - "Extended bed rest without high pressure injury risk"
+  contraindications:
+    - "Patients sensitive to motion"
+    - "Acute pressure injury present"

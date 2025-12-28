@@ -1,0 +1,38 @@
+# Default mattress configuration for body pressure simulator
+
+mattress:
+  # Physical dimensions (meters)
+  width: 0.762        # 30 inches - standard hospital bed width
+  height: 1.854       # 73 inches - standard bed length
+
+  # Grid resolution
+  grid:
+    rows: 16          # Cells along length (head to foot)
+    cols: 32          # Cells along width (left to right)
+
+  # Cell properties
+  cell:
+    max_height: 0.127  # 5 inches - maximum inflation
+    min_height: 0.025  # 1 inch - minimum (never fully flat)
+    default_height: 0.063  # 2.5 inches - 50% inflation
+
+  # Material properties (for future physics expansion)
+  material:
+    stiffness: 0.3    # Relative stiffness (0-1)
+    damping: 0.1      # Damping coefficient
+
+# Simulation parameters
+simulation:
+  time_step: 0.1      # Seconds between updates
+  default_duration: 300  # 5 minutes default run
+
+# Default body parameters
+body:
+  weight_kg: 70.0     # Default body weight
+  default_pose: supine  # Default lying position
+
+# Pressure thresholds (Pascals)
+thresholds:
+  capillary_closing: 4266  # ~32 mmHg - tissue damage threshold
+  high_risk: 9333          # ~70 mmHg - high risk threshold
+  comfort: 2000            # Comfort threshold

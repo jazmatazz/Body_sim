@@ -1,0 +1,47 @@
+# Two-Phase Alternating Pressure Pattern
+# Classic checkerboard alternating pressure for pressure ulcer prevention
+
+pattern:
+  name: "Two-Phase Alternating"
+  type: alternating
+  description: |
+    Classic checkerboard alternating pressure pattern commonly used in
+    medical alternating pressure mattresses. Cells alternate between
+    inflated and deflated states in a checkerboard pattern, switching
+    every half-cycle.
+
+  # Timing
+  cycle_duration: 10.0  # Seconds for complete cycle
+  transition_time: 0.5  # Seconds to transition between phases
+
+  # Height levels (normalized 0-1)
+  levels:
+    high: 1.0           # Fully inflated
+    low: 0.3            # Partially deflated (never fully flat)
+
+  # Phase definitions
+  phases:
+    - name: "phase_a"
+      duration: 5.0     # First half of cycle
+      pattern_type: "checkerboard"
+      primary_cells: "even"  # Cells where (row + col) % 2 == 0
+      primary_height: high
+      secondary_height: low
+
+    - name: "phase_b"
+      duration: 5.0     # Second half of cycle
+      pattern_type: "checkerboard"
+      primary_cells: "odd"   # Cells where (row + col) % 2 == 1
+      primary_height: high
+      secondary_height: low
+
+# Clinical notes
+clinical:
+  indication: "Pressure ulcer prevention"
+  recommended_for:
+    - "Patients at moderate risk for pressure injuries"
+    - "General pressure redistribution"
+  cycle_rationale: |
+    10-second cycle provides regular pressure relief while maintaining
+    adequate support. Faster cycles may cause discomfort, slower cycles
+    may not provide sufficient relief.
