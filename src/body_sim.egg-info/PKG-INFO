@@ -1,0 +1,31 @@
+Metadata-Version: 2.4
+Name: body-sim
+Version: 0.1.0
+Summary: Pressure point simulator for adjustable air mattresses with SMPL body models
+Author: Jasper Metz
+License: MIT
+Keywords: pressure,simulation,SMPL,healthcare,mattress,bodies-at-rest
+Classifier: Development Status :: 3 - Alpha
+Classifier: Intended Audience :: Science/Research
+Classifier: Topic :: Scientific/Engineering :: Medical Science Apps.
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Programming Language :: Python :: 3.12
+Requires-Python: >=3.10
+Description-Content-Type: text/markdown
+Requires-Dist: numpy>=1.21.0
+Requires-Dist: scipy>=1.7.0
+Requires-Dist: torch>=2.0.0
+Requires-Dist: smplpytorch>=0.0.8
+Requires-Dist: trimesh>=3.9.0
+Requires-Dist: pyvista>=0.40.0
+Requires-Dist: plotly>=5.15.0
+Requires-Dist: dash>=2.10.0
+Requires-Dist: pyyaml>=6.0
+Requires-Dist: pydantic>=2.0.0
+Provides-Extra: dev
+Requires-Dist: pytest>=7.0.0; extra == "dev"
+Requires-Dist: pytest-cov>=4.0.0; extra == "dev"
+Requires-Dist: black>=23.0; extra == "dev"
+Requires-Dist: mypy>=1.0; extra == "dev"
+Requires-Dist: ruff>=0.1.0; extra == "dev"

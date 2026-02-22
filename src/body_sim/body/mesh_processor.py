@@ -77,19 +77,26 @@ def position_body_on_mattress(
     vertices = mesh.vertices.copy()
     joints = mesh.joints.copy()
 
-    # Step 1: Rotate body to supine position (lying on back)
-    # SMPL default is standing, so rotate 90° around X to lie down
-    rot_supine = rotation_matrix_x(-np.pi / 2)
-    vertices = vertices @ rot_supine.T
-    joints = joints @ rot_supine.T
+    # SMPL with supine pose already outputs body lying down:
+    # - X: left/right (arm span ~1.7m in T-pose)
+    # - Y: head/foot (body length ~1.7m, head at +Y, feet at -Y)
+    # - Z: front/back (thickness ~0.3m, front at +Z, back at -Z)
+    #
+    # For mattress coordinate system:
+    # - X: across mattress width
+    # - Y: along mattress length (head at Y=0, feet at Y=max)
+    # - Z: vertical (up from mattress surface)
+    #
+    # We just need to translate so back (-Z) is at mattress surface (Z=0)
+    # and body is centered on mattress
 
-    # Step 2: Apply bed angle (head elevation)
+    # Step 1: Apply bed angle (head elevation) if needed
     if bed_angle != 0:
-        rot_bed = rotation_matrix_y(bed_angle)
+        rot_bed = rotation_matrix_x(-bed_angle)
         vertices = vertices @ rot_bed.T
         joints = joints @ rot_bed.T
 
-    # Step 3: Center on mattress
+    # Step 2: Center on mattress
     center_x = config.mattress_width / 2
     center_y = config.mattress_height / 2
 
@@ -98,12 +105,12 @@ def position_body_on_mattress(
     max_bounds = vertices.max(axis=0)
     current_center = (min_bounds + max_bounds) / 2
 
-    # Translate to center of mattress, with bottom of body at z=0
+    # Translate to center of mattress, with back of body at z=0
     translation = np.array(
         [
             center_x - current_center[0],
             center_y - current_center[1],
-            -min_bounds[2],  # Lift so lowest point is at z=0
+            -min_bounds[2],  # Lift so lowest point (back) is at z=0
         ],
         dtype=np.float32,
     )
@@ -202,6 +209,63 @@ def get_body_regions_mask(
         masks[region] = (vertices[:, 1] >= y_start) & (vertices[:, 1] < y_end)
 
     return masks
+
+
+def update_body_on_surface(
+    mesh: BodyMesh,
+    grid: "AirCellGrid",
+    base_offset: float = 0.0,
+) -> BodyMesh:
+    """Update body vertex Z positions to rest on the mattress surface.
+
+    Each vertex's Z coordinate is adjusted so the body follows the
+    contour of the mattress surface. This simulates the body sinking
+    into lower cells and being pushed up by higher cells.
+
+    Args:
+        mesh: Body mesh to update
+        grid: Air cell mattress grid with current heights
+        base_offset: Additional vertical offset (e.g., for body thickness)
+
+    Returns:
+        New BodyMesh with updated vertex positions
+    """
+    vertices = mesh.vertices.copy()
+    joints = mesh.joints.copy()
+
+    # Get the minimum Z of the original mesh (the "bottom" of the body)
+    min_z = vertices[:, 2].min()
+
+    # For each vertex, compute how much it should be lifted based on
+    # the mattress surface height at its (x, y) position
+    for i, vertex in enumerate(vertices):
+        x, y, z = vertex
+
+        # Get the mattress surface height at this position
+        surface_height = grid.get_interpolated_height_at(x, y)
+
+        # The vertex's relative height above the body's bottom
+        relative_z = z - min_z
+
+        # New Z = surface height + relative height within body + offset
+        vertices[i, 2] = surface_height + relative_z + base_offset
+
+    # Update joints similarly (approximate - use average surface height under body)
+    avg_surface = np.mean([
+        grid.get_interpolated_height_at(j[0], j[1])
+        for j in joints
+        if 0 <= j[0] <= grid.width and 0 <= j[1] <= grid.height
+    ] or [grid.min_cell_height])
+
+    joint_min_z = joints[:, 2].min()
+    joints[:, 2] = avg_surface + (joints[:, 2] - joint_min_z) + base_offset
+
+    return BodyMesh(
+        vertices=vertices,
+        faces=mesh.faces,
+        joints=joints,
+        parameters=mesh.parameters,
+    )
 
 
 def compute_vertex_areas(mesh: BodyMesh) -> NDArray[np.float32]:

@@ -5,7 +5,7 @@ torch>=2.0.0
 torchvision>=0.15.0
 
 # SMPL body model
-smplpytorch>=0.0.8
+smplx>=0.1.28
 
 # 3D mesh processing
 trimesh>=3.9.0

@@ -1,0 +1,2 @@
+[console_scripts]
+body-sim = body_sim.cli:main

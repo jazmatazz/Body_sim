@@ -4,7 +4,11 @@
       "WebFetch(domain:github.com)",
       "WebFetch(domain:raw.githubusercontent.com)",
       "WebFetch(domain:arxiv.org)",
-      "WebSearch"
+      "WebSearch",
+      "Bash(python examples/basic_simulation.py:*)",
+      "Bash(./.venv/bin/python:*)",
+      "Bash(ls:*)",
+      "Bash(ln:*)"
     ]
   }
 }

@@ -15,7 +15,7 @@ from body_sim.core.types import (
     SMPLParameters,
 )
 from body_sim.body.smpl_wrapper import SMPLPytorchWrapper, MockSMPLWrapper, SMPLInterface
-from body_sim.body.mesh_processor import position_body_on_mattress
+from body_sim.body.mesh_processor import position_body_on_mattress, update_body_on_surface
 from body_sim.mattress.grid import AirCellGrid
 from body_sim.mattress.patterns import PatternGenerator, StaticPattern
 from body_sim.physics.contact_detector import ContactDetector
@@ -75,6 +75,7 @@ class PressureSimulator:
         # State
         self._pattern: PatternGenerator = StaticPattern(height=0.5)
         self._current_mesh: Optional[BodyMesh] = None
+        self._base_mesh: Optional[BodyMesh] = None  # Reference mesh before surface adjustment
         self._simulation_time = 0.0
         self._history: list[PressureDistribution] = []
 
@@ -124,8 +125,11 @@ class PressureSimulator:
         if position_on_mattress:
             mesh = position_body_on_mattress(mesh, self.config, bed_angle)
 
-        self._current_mesh = mesh
-        return mesh
+        # Store as base mesh (before surface height adjustment)
+        self._base_mesh = mesh
+        # Apply initial surface adjustment based on current grid heights
+        self._current_mesh = update_body_on_surface(mesh, self.grid)
+        return self._current_mesh
 
     def load_body_from_pose(
         self,
@@ -179,8 +183,9 @@ class PressureSimulator:
     def step(self) -> PressureDistribution:
         """Advance simulation by one time step.
 
-        Updates pattern phase, applies to grid, detects contacts,
-        and calculates pressure distribution.
+        Updates pattern phase, applies to grid, updates body position
+        to follow mattress surface, detects contacts, and calculates
+        pressure distribution.
 
         Returns:
             Pressure distribution for current step
@@ -188,7 +193,7 @@ class PressureSimulator:
         Raises:
             RuntimeError: If no body mesh is loaded
         """
-        if self._current_mesh is None:
+        if self._base_mesh is None:
             raise RuntimeError("No body loaded. Call load_body() first.")
 
         # Update pattern phase and apply to grid
@@ -197,6 +202,9 @@ class PressureSimulator:
 
         heights = self._pattern.generate(self.grid.rows, self.grid.cols, phase)
         self.grid.set_normalized_pattern(heights)
+
+        # Update body mesh to follow mattress surface contour
+        self._current_mesh = update_body_on_surface(self._base_mesh, self.grid)
 
         # Detect contacts
         contacts = self._contact_detector.detect_contacts(self._current_mesh)
