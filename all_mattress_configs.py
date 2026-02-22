@@ -21,6 +21,7 @@ from multidynamic_mattress_optimization import (
     SMPLBodyPressureModel, MultiDynamicAirMattress,
     MOVEMENT_PATTERNS, CAPILLARY_CLOSING_PRESSURE
 )
+from evolved_pattern import EvolvedOptimalPattern
 
 # =============================================================================
 # BRADEN SCALE-BASED DAMAGE MODEL (Dweekat et al. 2023)
@@ -72,6 +73,50 @@ CRITICAL_DAMAGE = 100
 SHEAR_THRESHOLD = 10  # mmHg equivalent - shear above this compounds damage
 SHEAR_SYNERGY = 1.5   # Multiplier when both pressure AND shear present
 QUADRIPLEGIC_SHEAR_FACTOR = 1.3  # 30% higher shear due to spasticity
+
+# Physical air mattress constraints
+TRANSITION_TIME = 45.0  # Seconds for cell to fully inflate/deflate (realistic pump speed)
+
+
+class RealisticMattressState:
+    """Tracks actual cell states with realistic transition physics."""
+
+    def __init__(self, rows: int, cols: int, transition_time: float = TRANSITION_TIME):
+        self.rows = rows
+        self.cols = cols
+        self.transition_time = transition_time
+        self.max_rate = 1.0 / transition_time  # Max change per second
+
+        # Actual cell states (start fully inflated)
+        self.actual_state = np.ones((rows, cols))
+        self.last_time = 0.0
+
+    def update(self, target_state: np.ndarray, time_seconds: float) -> np.ndarray:
+        """
+        Move actual states toward target at limited rate.
+
+        Args:
+            target_state: Desired cell states from pattern
+            time_seconds: Current simulation time
+
+        Returns:
+            Actual cell states after realistic transition
+        """
+        dt = time_seconds - self.last_time
+        self.last_time = time_seconds
+
+        if dt <= 0:
+            return self.actual_state
+
+        # Maximum change possible in this time step
+        max_change = self.max_rate * dt
+
+        # Move each cell toward target at limited rate
+        diff = target_state - self.actual_state
+        change = np.clip(diff, -max_change, max_change)
+        self.actual_state = self.actual_state + change
+
+        return self.actual_state.copy()
 
 
 def calculate_cumulative_damage(pressure_history, shear_history, time_step_min, braden_score=DEFAULT_BRADEN_SCORE):
@@ -217,6 +262,9 @@ def create_animated_comparison():
 
     configs['Optimized Hybrid'] = {'type': 'apm', 'pattern': OptimizedHybrid(), 'key': 'optimized_hybrid'}
 
+    # Add genetically evolved pattern
+    configs['Evolved Optimal'] = {'type': 'apm', 'pattern': EvolvedOptimalPattern(), 'key': 'evolved_optimal'}
+
     print(f"\nTesting {len(configs)} configurations:")
     for name in configs:
         print(f"  - {name}")
@@ -229,37 +277,55 @@ def create_animated_comparison():
     time_step_min = (time_points[1] - time_points[0]) / 60  # Minutes between frames
 
     # Calculate pressure and cumulative damage for each config
+    # Use realistic transition physics (45 seconds for full inflate/deflate)
     all_results = {}
 
     for config_name, config in configs.items():
         pressure_history = []
         shear_history = []
 
+        # Create mattress ONCE and track state across all time steps
+        if config['type'] != 'foam':
+            pattern = config['pattern']
+            mattress = MultiDynamicAirMattress(cell_size_cm=5, movement_pattern=pattern)
+            realistic_state = RealisticMattressState(mattress.rows, mattress.cols)
+
+            # Resample body maps to mattress grid (do once)
+            scale_y = mattress.rows / body_pressure.shape[0]
+            scale_x = mattress.cols / body_pressure.shape[1]
+            body_resampled = zoom(body_pressure, (scale_y, scale_x), order=1)
+            shear_resampled = zoom(body_shear, (scale_y, scale_x), order=1)
+
         for time_sec in time_points:
             if config['type'] == 'foam':
                 effective_pressure = body_pressure * 0.85
                 effective_shear = body_shear * 0.85  # Foam reduces shear similarly
             else:
-                pattern = config['pattern']
-                mattress = MultiDynamicAirMattress(cell_size_cm=5, movement_pattern=pattern)
-
-                # Resample to match mattress grid
-                scale_y = mattress.rows / body_pressure.shape[0]
-                scale_x = mattress.cols / body_pressure.shape[1]
-                body_resampled = zoom(body_pressure, (scale_y, scale_x), order=1)
-                shear_resampled = zoom(body_shear, (scale_y, scale_x), order=1)
-
+                # Get target state from pattern
                 mattress.update(time_sec)
-                effective_pressure = mattress.get_effective_interface_pressure(body_resampled)
+                target_state = mattress.cell_state.copy()
+
+                # Apply realistic transition physics (45-second full transition)
+                actual_state = realistic_state.update(target_state, time_sec)
+
+                # Calculate pressure with ACTUAL (not target) cell states
+                effective_pressure = body_resampled.copy()
+                for row in range(mattress.rows):
+                    for col in range(mattress.cols):
+                        inflation = actual_state[row, col]
+                        if inflation < 0.5:
+                            relief_factor = 1 - inflation
+                            pressure_relieved = effective_pressure[row, col] * relief_factor * 0.7
+                            effective_pressure[row, col] -= pressure_relieved
 
                 # Shear is reduced when cells deflate (less friction surface)
-                effective_shear = shear_resampled * mattress.cell_state
+                effective_shear = shear_resampled * actual_state
 
                 # Resample back to display size
-                scale_y = body_pressure.shape[0] / effective_pressure.shape[0]
-                scale_x = body_pressure.shape[1] / effective_pressure.shape[1]
-                effective_pressure = zoom(effective_pressure, (scale_y, scale_x), order=1)
-                effective_shear = zoom(effective_shear, (scale_y, scale_x), order=1)
+                scale_y_back = body_pressure.shape[0] / effective_pressure.shape[0]
+                scale_x_back = body_pressure.shape[1] / effective_pressure.shape[1]
+                effective_pressure = zoom(effective_pressure, (scale_y_back, scale_x_back), order=1)
+                effective_shear = zoom(effective_shear, (scale_y_back, scale_x_back), order=1)
 
             pressure_history.append(effective_pressure)
             shear_history.append(effective_shear)
@@ -500,6 +566,7 @@ def create_animated_comparison():
     print(f"  - Shear model: {QUADRIPLEGIC_SHEAR_FACTOR}× spasticity factor, {SHEAR_SYNERGY}× pressure-shear synergy")
     print(f"  - Cells at Risk = risk score ≥ {CRITICAL_DAMAGE} (HAPI likely)")
     print(f"  - Pressure threshold: {PRESSURE_THRESHOLD} mmHg | Shear threshold: {SHEAR_THRESHOLD} mmHg")
+    print(f"  - Realistic physics: {TRANSITION_TIME:.0f} seconds for full cell inflate/deflate")
 
     return all_results
 
