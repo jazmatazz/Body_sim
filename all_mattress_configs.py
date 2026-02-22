@@ -503,7 +503,7 @@ def create_animated_comparison():
     print("\n" + "=" * 85)
     print("SUMMARY - BRADEN SCALE RISK MODEL WITH SHEAR FORCES (120 MINUTES)")
     print("=" * 85)
-    print(f"{'Configuration':<30} {'At Risk':>10} {'Max Risk':>10} {'Avg Shear':>10} {'vs Foam':>10}")
+    print(f"{'Configuration':<30} {'At Risk':>10} {'Max Risk':>10} {'Avg Shear':>10} {'Damage ↓':>10}")
     print("-" * 85)
 
     baseline_damage = final_metrics['Standard Foam']['total_damage']
@@ -511,7 +511,7 @@ def create_animated_comparison():
     for name in config_names:
         fm = final_metrics[name]
         reduction = (1 - fm['total_damage'] / baseline_damage) * 100 if baseline_damage > 0 else 0
-        print(f"{name:<30} {fm['cells_at_risk']:>10} {fm['max_damage']:>10.0f} {fm['avg_peak_shear']:>10.1f} {reduction:>+9.0f}%")
+        print(f"{name:<30} {fm['cells_at_risk']:>10} {fm['max_damage']:>10.0f} {fm['avg_peak_shear']:>10.1f} {reduction:>9.0f}%")
 
     print("-" * 85)
     print("Evidence base:")

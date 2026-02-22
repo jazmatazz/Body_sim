@@ -16,6 +16,7 @@ from multidynamic_mattress_optimization import (
     SMPLBodyPressureModel, MultiDynamicAirMattress,
     MOVEMENT_PATTERNS, CAPILLARY_CLOSING_PRESSURE
 )
+from evolved_pattern import EvolvedOptimalPattern
 
 
 def create_pressure_comparison():
@@ -39,6 +40,9 @@ def create_pressure_comparison():
     for name, pattern in MOVEMENT_PATTERNS.items():
         display_name = pattern.name if hasattr(pattern, 'name') else name.replace('_', ' ').title()
         configs[display_name] = {'type': 'apm', 'pattern': pattern, 'key': name}
+
+    # Add genetically evolved pattern
+    configs['Evolved Optimal'] = {'type': 'apm', 'pattern': EvolvedOptimalPattern(), 'key': 'evolved_optimal'}
 
     print(f"\nTesting {len(configs)} configurations:")
     for name in configs:
@@ -272,13 +276,13 @@ def create_pressure_comparison():
     print("\n" + "=" * 70)
     print("SUMMARY - AVERAGE PRESSURE METRICS OVER 120 MINUTES")
     print("=" * 70)
-    print(f"{'Configuration':<30} {'Avg Peak':>10} {'Avg >32':>10} {'vs Foam':>10}")
+    print(f"{'Configuration':<30} {'Avg Peak':>10} {'Avg >32':>10} {'Damage ↓':>10}")
     print("-" * 70)
 
     for name in config_names:
         am = avg_metrics[name]
         reduction = (1 - am['avg_cells_over_32'] / baseline_cells) * 100 if baseline_cells > 0 else 0
-        print(f"{name:<30} {am['avg_peak']:>10.1f} {am['avg_cells_over_32']:>10.1f} {reduction:>+9.0f}%")
+        print(f"{name:<30} {am['avg_peak']:>10.1f} {am['avg_cells_over_32']:>10.1f} {reduction:>9.0f}%")
 
     print("-" * 70)
     print(f"Threshold: 32 mmHg (capillary closing pressure)")
