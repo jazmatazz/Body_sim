@@ -10,9 +10,9 @@ Visualizes the Genetically Evolved Optimal air mattress with:
 - 30-degree head-of-bed incline
 
 Evolved Optimal achieved 98% damage reduction vs foam:
-- Max damage: 94 (vs 3011 for foam, 447 for manual hybrid)
-- At-risk cells: 0 (vs 37 for foam, 18 for manual hybrid)
-- Avg shear: 8.3 (vs 33.8 for foam, 21.8 for manual hybrid)
+- Max damage: 94 (vs 3011 for foam)
+- At-risk cells: 0 (vs 37 for foam)
+- Avg shear: 8.3 (vs 33.8 for foam)
 
 Key evolved strategies:
 - Lower max inflation (0.6-0.7) prevents pressure spikes

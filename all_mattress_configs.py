@@ -217,51 +217,6 @@ def create_animated_comparison():
         display_name = pattern.name if hasattr(pattern, 'name') else name.replace('_', ' ').title()
         configs[display_name] = {'type': 'apm', 'pattern': pattern, 'key': name}
 
-    # Add optimized hybrid pattern
-    class OptimizedHybrid:
-        """
-        Optimized hybrid pattern combining best strategies per body region.
-        - Sacrum: 3× cycling speed (faster than Zone-Based's 2×)
-        - Heels: 2× cycling speed
-        - Scapulae/Trochanters: 1.3-1.5× cycling speed
-        """
-        name = "Optimized Hybrid"
-
-        def get_cell_state(self, row, col, rows, cols, phase):
-            row_pos = row / rows
-            col_pos = col / cols
-
-            # Sacrum zone: VERY FAST cycling (3x)
-            if 0.40 <= row_pos < 0.55 and 0.35 <= col_pos <= 0.65:
-                local_phase = (phase * 3.0) % 1.0
-                return 0.5 + 0.5 * np.cos(2 * np.pi * local_phase)
-
-            # Heel zones: FAST cycling (2x)
-            elif row_pos >= 0.92 and (0.30 <= col_pos <= 0.42 or 0.58 <= col_pos <= 0.70):
-                local_phase = (phase * 2.0) % 1.0
-                return 0.5 + 0.5 * np.cos(2 * np.pi * local_phase)
-
-            # Scapulae zone: moderate cycling (1.2x) - matches Zone-Based optimal
-            elif 0.10 <= row_pos < 0.25:
-                local_phase = (phase * 1.2) % 1.0
-                return 0.5 + 0.5 * np.cos(2 * np.pi * local_phase)
-
-            # Trochanter zones: moderate cycling (1.3x)
-            elif 0.45 <= row_pos < 0.55 and (col_pos < 0.30 or col_pos > 0.70):
-                local_phase = (phase * 1.3) % 1.0
-                return 0.5 + 0.5 * np.cos(2 * np.pi * local_phase)
-
-            # Occiput: moderate cycling (1.3x)
-            elif row_pos < 0.08:
-                local_phase = (phase * 1.3) % 1.0
-                return 0.5 + 0.5 * np.cos(2 * np.pi * local_phase)
-
-            # Default: standard cycle
-            else:
-                return 0.5 + 0.5 * np.cos(2 * np.pi * phase)
-
-    configs['Optimized Hybrid'] = {'type': 'apm', 'pattern': OptimizedHybrid(), 'key': 'optimized_hybrid'}
-
     # Add genetically evolved pattern
     configs['Evolved Optimal'] = {'type': 'apm', 'pattern': EvolvedOptimalPattern(), 'key': 'evolved_optimal'}
 
