@@ -276,13 +276,13 @@ def create_pressure_comparison():
     print("\n" + "=" * 70)
     print("SUMMARY - AVERAGE PRESSURE METRICS OVER 120 MINUTES")
     print("=" * 70)
-    print(f"{'Configuration':<30} {'Avg Peak':>10} {'Avg >32':>10} {'Damage ↓':>10}")
+    print(f"{'Configuration':<30} {'Avg Peak':>10} {'Avg >32':>10} {'vs Foam':>10}")
     print("-" * 70)
 
     for name in config_names:
         am = avg_metrics[name]
-        reduction = (1 - am['avg_cells_over_32'] / baseline_cells) * 100 if baseline_cells > 0 else 0
-        print(f"{name:<30} {am['avg_peak']:>10.1f} {am['avg_cells_over_32']:>10.1f} {reduction:>9.0f}%")
+        change = (am['avg_cells_over_32'] / baseline_cells - 1) * 100 if baseline_cells > 0 else 0
+        print(f"{name:<30} {am['avg_peak']:>10.1f} {am['avg_cells_over_32']:>10.1f} {change:>+9.0f}%")
 
     print("-" * 70)
     print(f"Threshold: 32 mmHg (capillary closing pressure)")
