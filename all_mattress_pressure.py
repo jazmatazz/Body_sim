@@ -111,13 +111,13 @@ def create_pressure_comparison():
     for name in config_names:
         am = avg_metrics[name]
         if baseline_cells > 0:
-            reduction = (1 - am['avg_cells_over_32'] / baseline_cells) * 100
+            change = (am['avg_cells_over_32'] / baseline_cells - 1) * 100
         else:
-            reduction = 0
+            change = 0
         if name == 'Standard Foam':
             first_frame_titles.append(f"<b>{name} (Baseline)</b><br>Avg Peak: {am['avg_peak']:.0f} | Avg >32: {am['avg_cells_over_32']:.0f}")
         else:
-            first_frame_titles.append(f"<b>{name}</b><br>Avg Peak: {am['avg_peak']:.0f} | >32: {reduction:+.0f}%")
+            first_frame_titles.append(f"<b>{name}</b><br>Avg Peak: {am['avg_peak']:.0f} | vs Foam: {change:+.0f}%")
 
     # Pad with empty titles
     while len(first_frame_titles) < n_rows * n_cols:

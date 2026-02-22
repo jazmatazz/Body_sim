@@ -334,13 +334,13 @@ def create_animated_comparison():
     for name in config_names:
         fm = final_metrics[name]
         if baseline_damage > 0:
-            reduction = (1 - fm['total_damage'] / baseline_damage) * 100
+            change = (fm['total_damage'] / baseline_damage - 1) * 100
         else:
-            reduction = 0
+            change = 0
         if name == 'Standard Foam':
             first_frame_titles.append(f"<b>{name} (Baseline)</b><br>Max: {fm['max_damage']:.0f} | At Risk: {fm['cells_at_risk']}")
         else:
-            first_frame_titles.append(f"<b>{name}</b><br>Max: {fm['max_damage']:.0f} | Damage: {reduction:+.0f}%")
+            first_frame_titles.append(f"<b>{name}</b><br>Max: {fm['max_damage']:.0f} | vs Foam: {change:+.0f}%")
 
     # Pad with empty titles
     while len(first_frame_titles) < n_rows * n_cols:

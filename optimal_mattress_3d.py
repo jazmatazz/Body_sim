@@ -25,6 +25,7 @@ import numpy as np
 import plotly.graph_objects as go
 import math
 from evolved_pattern import EvolvedOptimalPattern
+from multidynamic_mattress_optimization import SMPLBodyPressureModel
 
 # Instantiate the evolved pattern
 EVOLVED_PATTERN = EvolvedOptimalPattern()
@@ -50,112 +51,82 @@ HINGE_POSITION = 0.45  # 45% from head (waist/hip area)
 # Body parameters
 BODY_LENGTH = 175  # cm
 
+# Cache for the body model (same model used in simulation)
+_body_model_cache = None
+
+
+def get_simulation_body_model():
+    """
+    Get the same SMPLBodyPressureModel used in the simulation.
+    This ensures the 3D visualization matches the simulation exactly.
+    """
+    global _body_model_cache
+    if _body_model_cache is None:
+        print("Loading SMPL body model (same as simulation)...")
+        _body_model_cache = SMPLBodyPressureModel(body_mass=75, incline_angle=INCLINE_ANGLE)
+    return _body_model_cache
+
 
 def load_smpl_body_on_inclined_bed(apply_deformation: bool = True):
     """
-    Load SMPL body model and position it on the inclined bed surface.
+    Load SMPL body model using the SAME model as the simulation.
     Returns vertices, faces for 3D mesh rendering.
 
-    Args:
-        apply_deformation: If True, apply tissue deformation at contact points
+    The simulation model uses coordinates:
+      x = width, y = height above bed, z = length along body
+
+    The visualization uses:
+      x = width, y = length along body, z = height
+
+    This function transforms the simulation coordinates to visualization coordinates.
     """
     try:
-        import smplx
-        import torch
+        model = get_simulation_body_model()
 
-        print("Loading SMPL body model...")
+        if model.vertices is None:
+            print("SMPL model not available")
+            return None, None, None, None, None
 
-        # Load SMPL model
-        smpl_dir = '/Users/jaspermetz/Documents/Body_Sim/smpl'
-        model = smplx.create(smpl_dir, model_type='smpl', gender='neutral')
+        # Get vertices and faces from simulation model
+        sim_verts = model.vertices.copy()
+        faces = model.faces
 
-        # Pose: supine with arms at sides
-        body_pose = torch.zeros(1, 69)
-        body_pose[0, 45 + 2] = -1.5   # L_shoulder Z-rot (arm down)
-        body_pose[0, 48 + 2] = 1.5    # R_shoulder Z-rot (arm down)
+        # Transform from simulation coords (x, y_height, z_length)
+        # to visualization coords (x, y_length, z_height)
+        vx = sim_verts[:, 0]  # Width stays the same
+        vy = sim_verts[:, 2]  # Length (sim z -> viz y)
+        vz = sim_verts[:, 1] + CELL_HEIGHT_MAX  # Height (sim y -> viz z) + cell offset
 
-        output = model(body_pose=body_pose)
-        verts = output.vertices.detach().numpy()[0]  # (6890, 3)
-        faces = model.faces  # (13776, 3)
+        # Calculate compression based on tissue thickness and position
+        # Using the simulation model's tissue thickness data
+        n_verts = len(vx)
+        compression = np.zeros(n_verts)
 
-        # Rotate from standing to supine (lying on back)
-        angle = -math.pi / 2
-        Rx = np.array([
-            [1, 0, 0],
-            [0, math.cos(angle), -math.sin(angle)],
-            [0, math.sin(angle), math.cos(angle)],
-        ])
-        v = verts @ Rx.T
-        v *= 100  # metres → cm
+        if hasattr(model, 'vertex_tissue_thickness') and model.vertex_tissue_thickness is not None:
+            tissue_thickness = model.vertex_tissue_thickness
+            for i in range(n_verts):
+                # Vertices near the surface compress based on tissue thickness
+                height_above_bed = sim_verts[i, 1]
+                if height_above_bed < 5.0:  # Within 5cm of surface
+                    contact_factor = 1.0 - (height_above_bed / 5.0)
+                    # Thinner tissue = more stiff = less compression
+                    # Thick tissue = soft = more compression
+                    thickness_mm = tissue_thickness[i]
+                    if thickness_mm < 5:  # Bony prominence
+                        max_compression = 0.3  # cm
+                    elif thickness_mm < 20:
+                        max_compression = 1.0  # cm
+                    else:
+                        max_compression = 2.0  # cm (soft tissue)
+                    compression[i] = max_compression * contact_factor
 
-        # Scale to match body length
-        raw_length = v[:, 2].max() - v[:, 2].min()
-        scale = BODY_LENGTH / raw_length
-        v *= scale
+        tissue_params = {
+            'compression': compression,
+            'tissue_thickness': model.vertex_tissue_thickness if hasattr(model, 'vertex_tissue_thickness') else None,
+            'body_parts': model.vertex_body_parts if hasattr(model, 'vertex_body_parts') else None,
+        }
 
-        # After rotation: X = width, Y = depth (height off bed), Z = body length
-        # Head is at negative Z after rotation, feet at positive Z
-        # Shift so head is at Z=0, feet at Z=body_length
-        v[:, 2] -= v[:, 2].min()
-
-        # Center X on mattress width
-        v[:, 0] -= v[:, 0].mean()
-        v[:, 0] += MATTRESS_WIDTH / 2
-
-        # Y is height above bed surface - shift so back touches bed
-        v[:, 1] -= v[:, 1].min()
-
-        # Now position body on inclined bed surface
-        # Use the same hinge position as the mattress cells
-        hinge_row = int(N_ROWS * HINGE_POSITION)
-        hinge_y_cm = hinge_row * CELL_SIZE  # Match cell hinge position
-        angle_rad = np.radians(INCLINE_ANGLE)
-
-        # Create output arrays for final positions
-        vx = v[:, 0].copy()  # Width stays the same
-        vy = np.zeros(len(v))  # Will be computed based on incline
-        vz = np.zeros(len(v))  # Will be computed based on incline
-
-        # Calculate tissue deformation parameters for each vertex
-        # Tissue thickness and compression depends on body part
-        tissue_params = get_tissue_deformation_params(v)
-
-        # Position body on the inclined bed surface using smooth continuous transforms
-        # (not discrete row-based) to avoid squiggly appearance
-        hinge_y_cm = int(N_ROWS * HINGE_POSITION) * CELL_SIZE  # Hinge at ~75cm
-
-        for i in range(len(v)):
-            body_pos = v[i, 2]  # Position along body (0=head, BODY_LENGTH=feet)
-            depth = v[i, 1]     # Height above bed surface
-
-            # Offset body to start 12cm from head of mattress
-            bed_pos = body_pos + 12
-
-            # Apply tissue deformation for vertices near the surface
-            if apply_deformation and depth < 5.0:  # Within 5cm of surface
-                compression = tissue_params['compression'][i]
-                # Reduce depth based on tissue compression
-                depth = max(0, depth - compression)
-
-            if bed_pos < hinge_y_cm:
-                # Above hinge - on inclined section
-                dist_from_hinge = hinge_y_cm - bed_pos
-
-                # Smooth continuous surface calculation
-                surf_y = hinge_y_cm - dist_from_hinge * np.cos(angle_rad)
-                surf_z = dist_from_hinge * np.sin(angle_rad) + CELL_HEIGHT_MAX
-
-                # Normal direction (perpendicular to inclined surface)
-                norm_y = -np.sin(angle_rad)
-                norm_z = np.cos(angle_rad)
-
-                # Position vertex on surface + depth along normal
-                vy[i] = surf_y + depth * norm_y
-                vz[i] = surf_z + depth * norm_z
-            else:
-                # Below hinge - on flat section
-                vy[i] = bed_pos
-                vz[i] = CELL_HEIGHT_MAX + depth
+        print(f"  Using simulation model: {len(vx)} vertices")
 
         return vx, vy, vz, faces, tissue_params
 
@@ -164,124 +135,6 @@ def load_smpl_body_on_inclined_bed(apply_deformation: bool = True):
         import traceback
         traceback.print_exc()
         return None, None, None, None, None
-
-
-def get_tissue_deformation_params(vertices):
-    """
-    Calculate tissue deformation parameters for each vertex.
-
-    Based on biomechanical properties:
-    - Bony prominences (sacrum, heels) - minimal compression, high pressure
-    - Soft tissue (buttocks, thighs) - significant compression
-    """
-    n_verts = len(vertices)
-
-    # Tissue thickness by body region (mm)
-    tissue_thickness = np.ones(n_verts) * 20.0  # Default
-
-    # Tissue stiffness factor (higher = stiffer = less compression)
-    stiffness = np.ones(n_verts) * 1.0
-
-    # Compression amount (cm) - will be calculated
-    compression = np.zeros(n_verts)
-
-    # Body part assignment based on position
-    for i, v in enumerate(vertices):
-        x, y, z = v  # x=width, y=height above bed, z=position along body
-
-        # Normalize z position (0=head, 1=feet)
-        z_norm = z / BODY_LENGTH
-        # Normalize x position relative to body center
-        x_norm = (x - MATTRESS_WIDTH/2) / (45/2)  # Assume 45cm body width
-
-        # Assign tissue properties by body region
-        # Head region (0-10%)
-        if z_norm < 0.10:
-            tissue_thickness[i] = 8.0
-            stiffness[i] = 2.0
-
-        # Shoulder region (10-25%)
-        elif z_norm < 0.25:
-            if abs(x_norm) > 0.5:
-                tissue_thickness[i] = 6.0  # Scapula
-                stiffness[i] = 3.0
-            else:
-                tissue_thickness[i] = 15.0  # Upper back
-                stiffness[i] = 1.2
-
-        # Upper back (25-40%)
-        elif z_norm < 0.40:
-            if abs(x_norm) < 0.2:
-                tissue_thickness[i] = 5.0  # Spine
-                stiffness[i] = 4.0
-            else:
-                tissue_thickness[i] = 15.0
-                stiffness[i] = 1.2
-
-        # Sacrum region (40-55%) - CRITICAL
-        elif z_norm < 0.55:
-            if abs(x_norm) < 0.35:
-                tissue_thickness[i] = 3.0  # Sacrum - very thin
-                stiffness[i] = 6.0  # Very stiff (bone)
-            else:
-                tissue_thickness[i] = 25.0  # Buttocks - thick
-                stiffness[i] = 0.5  # Very soft
-
-        # Buttocks/ischial (55-65%)
-        elif z_norm < 0.65:
-            if abs(x_norm) < 0.25:
-                tissue_thickness[i] = 4.0  # Ischial
-                stiffness[i] = 4.0
-            else:
-                tissue_thickness[i] = 25.0  # Buttocks
-                stiffness[i] = 0.5
-
-        # Thighs (65-80%)
-        elif z_norm < 0.80:
-            tissue_thickness[i] = 30.0
-            stiffness[i] = 0.8
-
-        # Calves (80-92%)
-        elif z_norm < 0.92:
-            tissue_thickness[i] = 20.0
-            stiffness[i] = 1.0
-
-        # Heels/ankles (92-100%)
-        else:
-            if abs(x_norm) > 0.4:
-                tissue_thickness[i] = 3.0  # Malleolus
-                stiffness[i] = 5.0
-            else:
-                tissue_thickness[i] = 5.0  # Heel
-                stiffness[i] = 3.0
-
-        # Calculate compression based on tissue properties and contact
-        # Vertices near the surface (small y) compress more
-        if y < 5.0:  # Within 5cm of bed surface
-            contact_factor = 1.0 - (y / 5.0)  # 1.0 at surface, 0 at 5cm
-
-            # Soft tissue compresses more than stiff tissue
-            max_compression = (tissue_thickness[i] / 10.0) * 0.6  # Up to 60% of tissue thickness
-
-            # Higher pressure regions compress more
-            # Sacrum region (with 30° incline) has highest pressure
-            pressure_factor = 1.0
-            if 0.40 <= z_norm < 0.55 and abs(x_norm) < 0.35:
-                pressure_factor = 2.5  # Sacrum with incline - max pressure
-            elif z_norm >= 0.92:
-                pressure_factor = 2.0  # Heels - high pressure
-            elif 0.10 <= z_norm < 0.25 and abs(x_norm) > 0.5:
-                pressure_factor = 1.5  # Scapulae
-
-            # Final compression (cm)
-            compression[i] = (max_compression * contact_factor * pressure_factor) / stiffness[i]
-            compression[i] = min(compression[i], tissue_thickness[i] / 10.0 * 0.65)  # Max 65% compression
-
-    return {
-        'tissue_thickness': tissue_thickness,
-        'stiffness': stiffness,
-        'compression': compression,
-    }
 
 
 def create_body_mesh(show_compression: bool = True):
