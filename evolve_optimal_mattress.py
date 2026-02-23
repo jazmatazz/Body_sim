@@ -19,11 +19,22 @@ from multidynamic_mattress_optimization import (
     SMPLBodyPressureModel, MultiDynamicAirMattress,
     CAPILLARY_CLOSING_PRESSURE
 )
+from all_mattress_configs import (
+    RealisticMattressState, calculate_cumulative_damage,
+    QUADRIPLEGIC_SHEAR_FACTOR as AMC_SHEAR_FACTOR
+)
 
-# Damage calculation constants (from all_mattress_configs.py)
+# PTI calculation constants (matching all_mattress_configs.py exactly)
+PRESSURE_THRESHOLD = 32  # mmHg - capillary closing pressure
 SHEAR_THRESHOLD = 10
 SHEAR_SYNERGY = 1.5
 QUADRIPLEGIC_SHEAR_FACTOR = 1.3
+
+# Pressure-Time Integral (PTI) based damage model
+# Unit: mmHg·hours above capillary closing threshold
+# Reference: Reswick & Rogers 1976, Linder-Ganz et al. 2006
+# Critical PTI threshold for HAPI (mmHg·hours) for very high risk patient (Braden ≤9)
+CRITICAL_PTI = 20.0
 
 BRADEN_MULTIPLIERS = {
     'very_high': 2.0,  # Score 6-9
@@ -188,7 +199,7 @@ class GenomeMattress:
         self.genome = genome
         self.cell_size_cm = cell_size_cm
         self.rows = 40
-        self.cols = 20
+        self.cols = 18
         self.phase = 0.0
         self.cycle_time = 300  # 5-minute base cycle
         self.transition_time = transition_time  # Seconds for full 0→1 transition
@@ -252,107 +263,102 @@ class GenomeMattress:
                 inflation = self.inflation[row, col]
 
                 if inflation < 0.5:
-                    # This cell provides relief
+                    # This cell provides relief (matching all_mattress_configs.py)
                     relief_factor = 1 - inflation
                     pressure_relieved = effective[row, col] * relief_factor * 0.7
                     effective[row, col] -= pressure_relieved
 
-                    # Redistribute to neighbors
-                    neighbors = []
-                    for dr, dc in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
-                        nr, nc = row + dr, col + dc
-                        if 0 <= nr < self.rows and 0 <= nc < self.cols:
-                            if self.inflation[nr, nc] > 0.5:
-                                neighbors.append((nr, nc))
-
-                    if neighbors:
-                        share = pressure_relieved / len(neighbors)
-                        for nr, nc in neighbors:
-                            effective[nr, nc] += share * 0.5
-
         return np.clip(effective, 0, None)
+
+
+class GenomePattern:
+    """Adapter to use a PatternGenome with MultiDynamicAirMattress."""
+
+    def __init__(self, genome: PatternGenome):
+        self.genome = genome
+        self.name = "Genome Pattern"
+        self.pattern_type = "genome"
+
+    def get_cell_state(self, row: int, col: int, rows: int, cols: int, phase: float,
+                       smooth: bool = False) -> float:
+        return self.genome.get_cell_state(row, col, rows, cols, phase)
 
 
 def evaluate_fitness(genome: PatternGenome, body_pressure: np.ndarray,
                      shear_map: np.ndarray, braden_score: int = 8,
-                     simulation_minutes: int = 60) -> Tuple[float, dict]:
+                     simulation_minutes: int = 120) -> Tuple[float, dict]:
     """
-    Evaluate genome fitness by simulating pressure/damage over time.
+    Evaluate genome fitness using EXACT same code path as all_mattress_configs.py.
     Returns (fitness_score, metrics_dict).
     Higher fitness = better pattern.
     """
-    mattress = GenomeMattress(genome)
+    # Create mattress with genome pattern (same as all_mattress_configs.py)
+    pattern = GenomePattern(genome)
+    mattress = MultiDynamicAirMattress(cell_size_cm=5, movement_pattern=pattern)
+    realistic_state = RealisticMattressState(mattress.rows, mattress.cols)
 
-    # Simulation parameters
-    time_step = 150  # 2.5 minutes in seconds
-    n_steps = (simulation_minutes * 60) // time_step
+    # Simulation parameters (matching all_mattress_configs.py exactly)
+    total_time = simulation_minutes * 60
+    n_frames = 48
+    time_points = np.linspace(0, total_time, n_frames, endpoint=False)
+    time_step_min = (time_points[1] - time_points[0]) / 60
 
-    # Initialize tracking
-    cumulative_damage = np.zeros_like(body_pressure)
-    total_relief_time = np.zeros((mattress.rows, mattress.cols))
-    peak_pressures = []
-    cells_over_threshold = []
-    shear_values = []
+    # Resample body maps to mattress grid (same as all_mattress_configs.py)
+    scale_y = mattress.rows / body_pressure.shape[0]
+    scale_x = mattress.cols / body_pressure.shape[1]
+    body_resampled = zoom(body_pressure, (scale_y, scale_x), order=1)
+    shear_resampled = zoom(shear_map, (scale_y, scale_x), order=1) * AMC_SHEAR_FACTOR
 
-    # Braden multiplier
-    if braden_score <= 9:
-        multiplier = BRADEN_MULTIPLIERS['very_high']
-    elif braden_score <= 12:
-        multiplier = BRADEN_MULTIPLIERS['high']
-    elif braden_score <= 14:
-        multiplier = BRADEN_MULTIPLIERS['moderate']
-    else:
-        multiplier = BRADEN_MULTIPLIERS['at_risk']
+    pressure_history = []
+    shear_history = []
 
-    for step in range(n_steps):
-        time_sec = step * time_step
+    for time_sec in time_points:
+        # Get target state from pattern
         mattress.update(time_sec)
+        target_state = mattress.cell_state.copy()
 
-        # Get effective pressure
-        effective_pressure = mattress.get_effective_interface_pressure(body_pressure)
+        # Apply realistic transition physics (same as all_mattress_configs.py)
+        actual_state = realistic_state.update(target_state, time_sec)
 
-        # Resize shear to match
-        if shear_map.shape != effective_pressure.shape:
-            scale_y = effective_pressure.shape[0] / shear_map.shape[0]
-            scale_x = effective_pressure.shape[1] / shear_map.shape[1]
-            effective_shear = zoom(shear_map, (scale_y, scale_x), order=1) * QUADRIPLEGIC_SHEAR_FACTOR
-        else:
-            effective_shear = shear_map * QUADRIPLEGIC_SHEAR_FACTOR
+        # Calculate pressure with ACTUAL cell states (same as all_mattress_configs.py)
+        effective_pressure = body_resampled.copy()
+        for row in range(mattress.rows):
+            for col in range(mattress.cols):
+                inflation = actual_state[row, col]
+                if inflation < 0.5:
+                    relief_factor = 1 - inflation
+                    pressure_relieved = effective_pressure[row, col] * relief_factor * 0.7
+                    effective_pressure[row, col] -= pressure_relieved
 
-        # Calculate damage increment
-        excess_pressure = np.maximum(0, effective_pressure - CAPILLARY_CLOSING_PRESSURE)
-        excess_shear = np.maximum(0, effective_shear - SHEAR_THRESHOLD)
+        # Shear is reduced when cells deflate (same as all_mattress_configs.py)
+        effective_shear = shear_resampled * actual_state
 
-        p_damage = (excess_pressure / CAPILLARY_CLOSING_PRESSURE) ** 1.5
-        s_damage = (excess_shear / SHEAR_THRESHOLD) ** 1.2
+        # Resample back to display size (same as all_mattress_configs.py)
+        scale_y_back = body_pressure.shape[0] / effective_pressure.shape[0]
+        scale_x_back = body_pressure.shape[1] / effective_pressure.shape[1]
+        effective_pressure = zoom(effective_pressure, (scale_y_back, scale_x_back), order=1)
+        effective_shear = zoom(effective_shear, (scale_y_back, scale_x_back), order=1)
 
-        shear_factor = 1 + np.clip(effective_shear / SHEAR_THRESHOLD, 0, 1)
-        has_both = (excess_pressure > 0) & (excess_shear > 0)
-        synergy = np.where(has_both, SHEAR_SYNERGY, 1.0)
+        pressure_history.append(effective_pressure)
+        shear_history.append(effective_shear)
 
-        damage_increment = (p_damage * shear_factor + s_damage) * synergy * multiplier
-        cumulative_damage += damage_increment * (time_step / 60)  # Per minute
+    # Use the EXACT same damage calculation as all_mattress_configs.py
+    final_damage, _ = calculate_cumulative_damage(pressure_history, shear_history, time_step_min, braden_score)
 
-        # Track metrics
-        peak_pressures.append(effective_pressure.max())
-        cells_over_threshold.append((effective_pressure > CAPILLARY_CLOSING_PRESSURE).sum())
-        shear_values.append(effective_shear.mean())
-        total_relief_time += mattress.relief_time
+    # Calculate fitness metrics (using PTI - mmHg·hours)
+    max_pti = final_damage.max()
+    at_risk_cells = (final_damage >= CRITICAL_PTI).sum()
+    avg_peak_pressure = np.mean([p.max() for p in pressure_history])
+    avg_cells_over = np.mean([(p > PRESSURE_THRESHOLD).sum() for p in pressure_history])
+    avg_shear = np.mean([s.mean() for s in shear_history])
 
-    # Calculate fitness metrics
-    max_damage = cumulative_damage.max()
-    at_risk_cells = (cumulative_damage > 100).sum()
-    avg_peak_pressure = np.mean(peak_pressures)
-    avg_cells_over = np.mean(cells_over_threshold)
-    avg_shear = np.mean(shear_values)
+    # Relief coverage: cells that stayed below PTI threshold
+    relief_coverage = (final_damage < CRITICAL_PTI).sum() / final_damage.size
 
-    # Relief time bonus (cells that got periodic relief)
-    relief_coverage = (total_relief_time > 0).sum() / total_relief_time.size
-
-    # Weighted fitness (lower damage = higher fitness)
+    # Weighted fitness (lower PTI = higher fitness)
     # We want to MINIMIZE these, so fitness = 1 / (weighted sum)
     fitness = 1000 / (
-        max_damage * 2.0 +           # Heavily penalize max damage
+        max_pti * 2.0 +              # Heavily penalize max PTI
         at_risk_cells * 10.0 +       # Penalize at-risk cells
         avg_peak_pressure * 0.5 +    # Moderate penalty for peak pressure
         avg_shear * 1.0 +            # Shear penalty
@@ -360,7 +366,7 @@ def evaluate_fitness(genome: PatternGenome, body_pressure: np.ndarray,
     )
 
     metrics = {
-        'max_damage': max_damage,
+        'max_pti': max_pti,  # mmHg·hours
         'at_risk_cells': at_risk_cells,
         'avg_peak_pressure': avg_peak_pressure,
         'avg_cells_over_threshold': avg_cells_over,
@@ -391,9 +397,9 @@ class GeneticOptimizer:
         self.generation: int = 0
         self.history: List[dict] = []
 
-        # Body model
+        # Body model (matching all_mattress_configs.py: 40x18 grid)
         self.model = SMPLBodyPressureModel(75, 30)
-        self.body_pressure, self.shear_map = self.model.calculate_pressure_map(40, 20)
+        self.body_pressure, self.shear_map = self.model.calculate_pressure_map(40, 18)
 
     def initialize_population(self):
         """Create initial random population."""
@@ -405,7 +411,7 @@ class GeneticOptimizer:
         for i, genome in enumerate(self.population):
             fitness, metrics = evaluate_fitness(
                 genome, self.body_pressure, self.shear_map,
-                braden_score=8, simulation_minutes=60
+                braden_score=8, simulation_minutes=120
             )
             genome.fitness = fitness
             genome.generation = self.generation
@@ -494,7 +500,7 @@ class GeneticOptimizer:
                 'generation': gen + 1,
                 'best_fitness': best.fitness,
                 'avg_fitness': avg_fitness,
-                'max_damage': metrics['max_damage'],
+                'max_pti': metrics['max_pti'],
                 'at_risk_cells': metrics['at_risk_cells'],
                 'avg_shear': metrics['avg_shear'],
             })
@@ -502,7 +508,7 @@ class GeneticOptimizer:
             if verbose:
                 print(f"  Best Fitness: {best.fitness:.4f}")
                 print(f"  Avg Fitness:  {avg_fitness:.4f}")
-                print(f"  Max Damage:   {metrics['max_damage']:.1f}")
+                print(f"  Peak PTI:     {metrics['max_pti']:.1f} mmHg·h")
                 print(f"  At Risk:      {metrics['at_risk_cells']}")
                 print(f"  Avg Shear:    {metrics['avg_shear']:.1f}")
 
@@ -540,7 +546,7 @@ class GeneticOptimizer:
             rows=2, cols=2,
             subplot_titles=[
                 '<b>Fitness Over Generations</b>',
-                '<b>Damage Metrics Over Generations</b>',
+                '<b>PTI (mmHg·h) Over Generations</b>',
                 '<b>Best Pattern - Region Parameters</b>',
                 '<b>Pressure Distribution</b>'
             ],
@@ -571,14 +577,14 @@ class GeneticOptimizer:
             line=dict(color='blue', dash='dash')
         ), row=1, col=1)
 
-        # Panel 2: Damage metrics
-        max_damage = [h['max_damage'] for h in self.history]
+        # Panel 2: PTI metrics
+        max_pti = [h['max_pti'] for h in self.history]
         at_risk = [h['at_risk_cells'] for h in self.history]
 
         fig.add_trace(go.Scatter(
-            x=gens, y=max_damage,
+            x=gens, y=max_pti,
             mode='lines+markers',
-            name='Max Damage',
+            name='Peak PTI (mmHg·h)',
             line=dict(color='red', width=2)
         ), row=1, col=2)
 
@@ -650,7 +656,7 @@ class GeneticOptimizer:
             title=dict(
                 text=f'<b>Evolved Mattress Pattern</b><br>'
                      f'<sup>Generation {len(self.history)} | '
-                     f'Max Damage: {final_metrics.get("max_damage", 0):.1f} | '
+                     f'Peak PTI: {final_metrics.get("max_pti", 0):.1f} mmHg·h | '
                      f'At Risk: {final_metrics.get("at_risk_cells", 0)}</sup>',
                 x=0.5,
                 font=dict(size=18)
@@ -664,7 +670,7 @@ class GeneticOptimizer:
         fig.update_xaxes(title_text='Generation', row=1, col=1)
         fig.update_yaxes(title_text='Fitness', row=1, col=1)
         fig.update_xaxes(title_text='Generation', row=1, col=2)
-        fig.update_yaxes(title_text='Max Damage', row=1, col=2)
+        fig.update_yaxes(title_text='PTI (mmHg·h)', row=1, col=2)
 
         fig.write_html(save_path, include_plotlyjs=True, full_html=True)
         print(f"\nSaved visualization: {save_path}")

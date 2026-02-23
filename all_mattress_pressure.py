@@ -265,9 +265,29 @@ def create_pressure_comparison():
                 for i in range(n_frames)
             ]
         }],
-        height=1000,
-        width=1400,
+        height=1600,
+        width=1800,
     )
+
+    # Add axis labels (cm) to all subplots with 1:1 scale
+    # Grid is 40 rows (0-200 cm length) x 18 cols (0-90 cm width)
+    for i in range(n_rows * n_cols):
+        axis_suffix = '' if i == 0 else str(i + 1)
+        fig.update_layout(**{
+            f'xaxis{axis_suffix}': dict(
+                title='Width (cm)' if i >= (n_rows - 1) * n_cols else None,
+                tickvals=[0, 9, 18],
+                ticktext=['0', '45', '90'],
+                constrain='domain',
+            ),
+            f'yaxis{axis_suffix}': dict(
+                title='Length (cm)' if i % n_cols == 0 else None,
+                tickvals=[0, 20, 40],
+                ticktext=['0', '100', '200'],
+                scaleanchor=f'x{axis_suffix}' if axis_suffix else 'x',
+                scaleratio=1,
+            ),
+        })
 
     fig.write_html('all_mattress_pressure.html', include_plotlyjs=True, full_html=True)
     print(f"\nSaved: all_mattress_pressure.html")

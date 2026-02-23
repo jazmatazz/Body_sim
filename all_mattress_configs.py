@@ -57,17 +57,24 @@ DAMAGE_MULTIPLIER = BRADEN_RISK_LEVELS['very_high']['damage_multiplier']
 # High-risk patients: damage accumulates faster
 # Key finding: Braden subscales + time in ICU are primary predictors
 
-# Damage accumulation rate (per minute above threshold, per mmHg excess)
-# Calibrated so that 2 hours at 50 mmHg = 100% risk for very high risk patient
-# (50-32) × 120 min × rate × 2.0 multiplier = 100
-# 18 × 120 × rate × 2.0 = 100 → rate = 0.023
-BASE_DAMAGE_RATE = 0.023
+# Pressure-Time Integral (PTI) based damage model
+# Unit: mmHg·hours above capillary closing threshold
+# Reference: Reswick & Rogers 1976, Linder-Ganz et al. 2006
+#
+# Clinical thresholds from literature:
+# - Healthy tissue: ~70 mmHg·hours tolerance (Reswick-Rogers curve)
+# - Compromised tissue (SCI): ~35 mmHg·hours (50% reduction)
+# - Very high risk (Braden ≤9): ~20 mmHg·hours
+#
+# Example: 2 hours at 50 mmHg = (50-32) × 2 = 36 mmHg·hours
 
-# Recovery rate when pressure relieved
-RECOVERY_RATE = 0.3  # 30% of damage rate during relief
+# Recovery rate: tissue recovers ~30% of accumulated PTI when below threshold
+# Based on reperfusion studies showing partial but incomplete recovery
+RECOVERY_RATE = 0.3
 
-# Critical threshold (100 = high probability of HAPI)
-CRITICAL_DAMAGE = 100
+# Critical PTI threshold for HAPI (mmHg·hours)
+# For very high risk patient (Braden ≤9)
+CRITICAL_PTI = 20.0
 
 # Shear stress parameters
 SHEAR_THRESHOLD = 10  # mmHg equivalent - shear above this compounds damage
@@ -154,41 +161,45 @@ def calculate_cumulative_damage(pressure_history, shear_history, time_step_min, 
         multiplier = BRADEN_RISK_LEVELS['no_risk']['damage_multiplier']
 
     shape = pressure_history[0].shape
-    cumulative_damage = np.zeros(shape)
-    damage_history = []
+    cumulative_pti = np.zeros(shape)  # Pressure-Time Integral in mmHg·hours
+    pti_history = []
+
+    # Convert time step to hours
+    time_step_hours = time_step_min / 60
 
     for i, pressure_map in enumerate(pressure_history):
         shear_map = shear_history[i]
 
-        # Cells above threshold accumulate damage
+        # Pressure above capillary closing threshold
         excess_pressure = np.maximum(0, pressure_map - PRESSURE_THRESHOLD)
         excess_shear = np.maximum(0, shear_map - SHEAR_THRESHOLD)
 
         # Shear amplifies pressure damage (1.0 to 2.0× based on shear level)
         shear_factor = 1 + np.clip(shear_map / SHEAR_THRESHOLD, 0, 1)
 
-        # Pressure-shear synergy: when BOTH are elevated, damage is multiplied
+        # Pressure-shear synergy: when BOTH are elevated, PTI accumulates faster
         has_both = (excess_pressure > 0) & (excess_shear > 0)
         synergy_factor = np.where(has_both, SHEAR_SYNERGY, 1.0)
 
-        # Combined damage calculation
-        # Base pressure damage × shear amplification × synergy × Braden risk
-        pressure_damage = excess_pressure * BASE_DAMAGE_RATE * time_step_min
-        shear_damage = excess_shear * BASE_DAMAGE_RATE * 0.5 * time_step_min  # Shear alone is 50% as damaging
+        # PTI accumulation (mmHg·hours)
+        # excess_pressure (mmHg) × time_step_hours × factors
+        pressure_pti = excess_pressure * time_step_hours
+        shear_pti = excess_shear * time_step_hours * 0.5  # Shear contributes 50%
 
-        damage_increment = (pressure_damage * shear_factor + shear_damage) * synergy_factor * multiplier
-        cumulative_damage += damage_increment
+        pti_increment = (pressure_pti * shear_factor + shear_pti) * synergy_factor * multiplier
+        cumulative_pti += pti_increment
 
-        # Cells below BOTH thresholds recover partially
+        # Cells below BOTH thresholds recover partially (reperfusion)
         below_both = (pressure_map <= PRESSURE_THRESHOLD) & (shear_map <= SHEAR_THRESHOLD)
-        recovery = RECOVERY_RATE * BASE_DAMAGE_RATE * time_step_min * multiplier
-        cumulative_damage[below_both] = np.maximum(
-            0, cumulative_damage[below_both] - recovery
+        # Recovery: 30% of what would accumulate at threshold, per time step
+        recovery_pti = RECOVERY_RATE * PRESSURE_THRESHOLD * time_step_hours * multiplier
+        cumulative_pti[below_both] = np.maximum(
+            0, cumulative_pti[below_both] - recovery_pti
         )
 
-        damage_history.append(cumulative_damage.copy())
+        pti_history.append(cumulative_pti.copy())
 
-    return cumulative_damage, damage_history
+    return cumulative_pti, pti_history
 
 
 def create_animated_comparison():
@@ -299,14 +310,14 @@ def create_animated_comparison():
                 'peak_shear': shear_history[i].max(),
                 'cells_over_32': (pressure_history[i] > 32).sum(),
                 'cells_high_shear': (shear_history[i] > SHEAR_THRESHOLD).sum(),
-                'cells_at_risk': (damage_history[i] >= CRITICAL_DAMAGE).sum(),
+                'cells_at_risk': (damage_history[i] >= CRITICAL_PTI).sum(),
                 'max_damage': damage_history[i].max(),
                 'total_damage': damage_history[i].sum(),
                 'time_min': time_sec / 60,
             })
 
         avg_shear = np.mean([s.max() for s in shear_history])
-        print(f"  {config_name}: Max damage = {final_damage.max():.1f}, At risk = {(final_damage >= CRITICAL_DAMAGE).sum()}, Avg peak shear = {avg_shear:.1f}")
+        print(f"  {config_name}: Max PTI = {final_damage.max():.1f} mmHg·h, At risk = {(final_damage >= CRITICAL_PTI).sum()}, Avg peak shear = {avg_shear:.1f}")
 
     # Create figure layout - 4 rows x 4 cols = 16 slots (13 configs)
     n_configs = len(configs)
@@ -327,7 +338,7 @@ def create_animated_comparison():
             'avg_peak_shear': avg_shear,
         }
 
-    # Create subplot titles showing FINAL DAMAGE (compared to Standard Foam baseline)
+    # Create subplot titles showing FINAL PTI (compared to Standard Foam baseline)
     baseline_risk = final_metrics['Standard Foam']['cells_at_risk']
     baseline_damage = final_metrics['Standard Foam']['total_damage']
     first_frame_titles = []
@@ -338,9 +349,9 @@ def create_animated_comparison():
         else:
             change = 0
         if name == 'Standard Foam':
-            first_frame_titles.append(f"<b>{name} (Baseline)</b><br>Max: {fm['max_damage']:.0f} | At Risk: {fm['cells_at_risk']}")
+            first_frame_titles.append(f"<b>{name} (Baseline)</b><br>Peak PTI: {fm['max_damage']:.1f} mmHg·h | At Risk: {fm['cells_at_risk']}")
         else:
-            first_frame_titles.append(f"<b>{name}</b><br>Max: {fm['max_damage']:.0f} | vs Foam: {change:+.0f}%")
+            first_frame_titles.append(f"<b>{name}</b><br>Peak PTI: {fm['max_damage']:.1f} mmHg·h | vs Foam: {change:+.0f}%")
 
     # Pad with empty titles
     while len(first_frame_titles) < n_rows * n_cols:
@@ -353,15 +364,15 @@ def create_animated_comparison():
         horizontal_spacing=0.05
     )
 
-    # Colorscale for cumulative damage (green = safe, red = HAPI likely)
-    # Scale: 0 = no damage, 100 = HAPI likely (based on Braden risk model)
-    damage_colorscale = [
+    # Colorscale for Pressure-Time Integral (green = safe, red = HAPI likely)
+    # Scale: 0 = no damage, CRITICAL_PTI (20 mmHg·h) = HAPI likely for high-risk patient
+    pti_colorscale = [
         [0, 'rgb(0, 100, 0)'],        # 0 - safe
         [0.2, 'rgb(144, 238, 144)'],   # Low risk
         [0.4, 'rgb(255, 255, 0)'],     # Moderate risk
         [0.6, 'rgb(255, 165, 0)'],     # High risk
         [0.8, 'rgb(255, 0, 0)'],       # Very high risk
-        [1.0, 'rgb(100, 0, 0)']        # HAPI likely (>100)
+        [1.0, 'rgb(100, 0, 0)']        # HAPI likely (≥CRITICAL_PTI)
     ]
 
     # Add initial frame (time 0 - no damage yet)
@@ -374,19 +385,19 @@ def create_animated_comparison():
         fig.add_trace(
             go.Heatmap(
                 z=r['damage'],
-                colorscale=damage_colorscale,
+                colorscale=pti_colorscale,
                 zmin=0,
-                zmax=CRITICAL_DAMAGE * 1.5,  # 150 to show cells that exceeded threshold
+                zmax=CRITICAL_PTI * 1.5,  # 30 mmHg·h to show cells that exceeded threshold
                 showscale=(idx == 0),
                 colorbar=dict(
-                    title='Risk Score',
-                    tickvals=[0, 25, 50, 75, 100, 150],
-                    ticktext=['0', '25', '50', '75', '100<br>(HAPI)', '150'],
+                    title='PTI (mmHg·h)',
+                    tickvals=[0, 5, 10, 15, 20, 30],
+                    ticktext=['0', '5', '10', '15', '20<br>(HAPI)', '30'],
                     len=0.3,
                     y=0.85,
                     x=1.02
                 ) if idx == 0 else None,
-                hovertemplate=f'{name}<br>Risk: %{{z:.0f}}<br>(100 = HAPI likely)<extra></extra>'
+                hovertemplate=f'{name}<br>PTI: %{{z:.1f}} mmHg·h<br>(≥{CRITICAL_PTI} = HAPI likely)<extra></extra>'
             ),
             row=row, col=col
         )
@@ -406,9 +417,9 @@ def create_animated_comparison():
             frame_data.append(
                 go.Heatmap(
                     z=r['damage'],
-                    colorscale=damage_colorscale,
+                    colorscale=pti_colorscale,
                     zmin=0,
-                    zmax=CRITICAL_DAMAGE * 1.5,
+                    zmax=CRITICAL_PTI * 1.5,
                     showscale=(idx == 0),
                 )
             )
@@ -418,9 +429,9 @@ def create_animated_comparison():
             name=str(frame_idx),
             layout=go.Layout(
                 title=dict(
-                    text=f'<b>Braden Scale Risk Model with Shear Forces - 120 Minute Simulation</b><br>'
+                    text=f'<b>Pressure-Time Integral (PTI) Model - 120 Minute Simulation</b><br>'
                          f'<sup>Time: {time_min:.1f} min | '
-                         f'Risk ≥100 = HAPI likely | Includes pressure + shear synergy (1.5×)</sup>'
+                         f'PTI ≥{CRITICAL_PTI} mmHg·h = HAPI likely | Includes pressure + shear synergy (1.5×)</sup>'
                 )
             )
         ))
@@ -430,8 +441,8 @@ def create_animated_comparison():
     # Animation controls
     fig.update_layout(
         title=dict(
-            text='<b>Braden Scale Risk Model with Shear Forces - 120 Minute Simulation</b><br>'
-                 '<sup>Time: 0 min | Risk ≥100 = HAPI likely | Includes pressure + shear synergy (1.5×)</sup>',
+            text=f'<b>Pressure-Time Integral (PTI) Model - 120 Minute Simulation</b><br>'
+                 f'<sup>Time: 0 min | PTI ≥{CRITICAL_PTI} mmHg·h = HAPI likely | Includes pressure + shear synergy (1.5×)</sup>',
             x=0.5,
             font=dict(size=18)
         ),
@@ -492,34 +503,56 @@ def create_animated_comparison():
                 for i in range(n_frames)
             ]
         }],
-        height=1000,
-        width=1400,
+        height=1600,
+        width=1800,
     )
+
+    # Add axis labels (cm) to all subplots with 1:1 scale
+    # Grid is 40 rows (0-200 cm length) x 18 cols (0-90 cm width)
+    for i in range(n_rows * n_cols):
+        axis_suffix = '' if i == 0 else str(i + 1)
+        fig.update_layout(**{
+            f'xaxis{axis_suffix}': dict(
+                title='Width (cm)' if i >= (n_rows - 1) * n_cols else None,
+                tickvals=[0, 9, 18],
+                ticktext=['0', '45', '90'],
+                constrain='domain',
+            ),
+            f'yaxis{axis_suffix}': dict(
+                title='Length (cm)' if i % n_cols == 0 else None,
+                tickvals=[0, 20, 40],
+                ticktext=['0', '100', '200'],
+                scaleanchor=f'x{axis_suffix}' if axis_suffix else 'x',
+                scaleratio=1,
+            ),
+        })
 
     fig.write_html('all_mattress_configs.html', include_plotlyjs=True, full_html=True)
     print(f"\nSaved: all_mattress_configs.html")
 
-    # Print summary with Braden Scale-based damage metrics
-    print("\n" + "=" * 85)
-    print("SUMMARY - BRADEN SCALE RISK MODEL WITH SHEAR FORCES (120 MINUTES)")
-    print("=" * 85)
-    print(f"{'Configuration':<30} {'At Risk':>10} {'Max Risk':>10} {'Avg Shear':>10} {'vs Foam':>10}")
-    print("-" * 85)
+    # Print summary with PTI-based metrics
+    print("\n" + "=" * 90)
+    print("SUMMARY - PRESSURE-TIME INTEGRAL (PTI) MODEL (120 MINUTES)")
+    print("=" * 90)
+    print(f"{'Configuration':<30} {'At Risk':>10} {'Peak PTI':>12} {'Avg Shear':>10} {'vs Foam':>10}")
+    print(f"{'':30} {'(cells)':>10} {'(mmHg·h)':>12} {'(mmHg)':>10} {'':>10}")
+    print("-" * 90)
 
     baseline_damage = final_metrics['Standard Foam']['total_damage']
 
     for name in config_names:
         fm = final_metrics[name]
         change = (fm['total_damage'] / baseline_damage - 1) * 100 if baseline_damage > 0 else 0
-        print(f"{name:<30} {fm['cells_at_risk']:>10} {fm['max_damage']:>10.0f} {fm['avg_peak_shear']:>10.1f} {change:>+9.0f}%")
+        print(f"{name:<30} {fm['cells_at_risk']:>10} {fm['max_damage']:>12.1f} {fm['avg_peak_shear']:>10.1f} {change:>+9.0f}%")
 
-    print("-" * 85)
-    print("Evidence base:")
-    print("  - Dweekat et al. 2023: Braden Scale + Random Forest HAPI prediction")
-    print("  - Patient modeled: Quadriplegic (Braden score 8 = very high risk)")
-    print("  - Braden subscales: Sensory=1, Mobility=1, Activity=1, Moisture=2, Nutrition=2, Friction=1")
+    print("-" * 90)
+    print("PTI Model (Pressure-Time Integral):")
+    print("  - Unit: mmHg·hours above capillary closing pressure (32 mmHg)")
+    print("  - Reference: Reswick & Rogers 1976 pressure-time tolerance curves")
+    print(f"  - Critical PTI threshold: {CRITICAL_PTI} mmHg·h (for Braden ≤9 patient)")
+    print("  - Example: 2 hours at 50 mmHg = (50-32) × 2 = 36 mmHg·h")
+    print(f"  - Patient modeled: Quadriplegic (Braden score {DEFAULT_BRADEN_SCORE} = very high risk)")
     print(f"  - Shear model: {QUADRIPLEGIC_SHEAR_FACTOR}× spasticity factor, {SHEAR_SYNERGY}× pressure-shear synergy")
-    print(f"  - Cells at Risk = risk score ≥ {CRITICAL_DAMAGE} (HAPI likely)")
     print(f"  - Pressure threshold: {PRESSURE_THRESHOLD} mmHg | Shear threshold: {SHEAR_THRESHOLD} mmHg")
     print(f"  - Realistic physics: {TRANSITION_TIME:.0f} seconds for full cell inflate/deflate")
 
