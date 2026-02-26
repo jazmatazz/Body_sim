@@ -180,7 +180,7 @@ class SimulationConfig:
 
     # Simulation parameters
     time_step: float = 0.1  # seconds
-    body_weight: float = 70.0  # kg
+    body_weight: float = 80.0  # kg
 
     @property
     def cell_width(self) -> float:

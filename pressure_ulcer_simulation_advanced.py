@@ -1275,7 +1275,7 @@ class AdvancedBodyModel:
         },
     }
 
-    def __init__(self, body_mass=70, body_length=180, body_width=65,
+    def __init__(self, body_mass=80, body_length=180, body_width=65,
                  grid_resolution=5, waist_hinge_angle=0, gender='male'):
         """
         Initialize advanced body model.
@@ -2136,7 +2136,7 @@ class AdvancedPressureUlcerSimulation:
     - Tissue vulnerability is HIGHER
     """
 
-    def __init__(self, body_mass=70, cell_size=5, simulation_time=3600,
+    def __init__(self, body_mass=80, cell_size=5, simulation_time=3600,
                  timestep=15, waist_hinge_angle=0,
                  enable_zone_control=True, enable_alternating=True,
                  enable_repositioning=True, reposition_interval=1800,
@@ -3575,7 +3575,7 @@ STRATEGIES = {
 }
 
 
-def run_strategy_comparison(body_mass=75, cell_size=5, simulation_time=3600,
+def run_strategy_comparison(body_mass=80, cell_size=5, simulation_time=3600,
                             timestep=15, waist_hinge_angle=25):
     """
     Run the simulation under each repositioning strategy and collect results.
@@ -3749,7 +3749,7 @@ def main():
 
     # Configuration
     config = {
-        'body_mass': 75,
+        'body_mass': 80,
         'cell_size': 5,
         'simulation_time': 3600,  # 1 hour
         'timestep': 15,

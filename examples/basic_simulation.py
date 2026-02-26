@@ -60,8 +60,8 @@ def main():
     parser.add_argument(
         "--weight",
         type=float,
-        default=70.0,
-        help="Body weight in kg (default: 70)",
+        default=80.0,
+        help="Body weight in kg (default: 80)",
     )
     parser.add_argument(
         "--pattern",

@@ -63,7 +63,7 @@ def get_simulation_body_model():
     global _body_model_cache
     if _body_model_cache is None:
         print("Loading SMPL body model (same as simulation)...")
-        _body_model_cache = SMPLBodyPressureModel(body_mass=75, incline_angle=INCLINE_ANGLE)
+        _body_model_cache = SMPLBodyPressureModel(body_mass=80, incline_angle=INCLINE_ANGLE)
     return _body_model_cache
 
 

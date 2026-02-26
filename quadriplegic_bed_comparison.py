@@ -32,7 +32,7 @@ import time
 
 # Base configuration for quadriplegic patient
 BASE_CONFIG = {
-    'body_mass': 70,
+    'body_mass': 80,
     'cell_size': 5,
     'simulation_time': 3600,  # 1 hour
     'timestep': 30,

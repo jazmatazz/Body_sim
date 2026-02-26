@@ -3,7 +3,7 @@ import numpy as np
 # -----------------------------
 # GLOBAL CONSTANTS
 # -----------------------------
-BODY_WEIGHT = 70 * 9.81        # Newtons
+BODY_WEIGHT = 80 * 9.81        # Newtons
 SIM_TIME_HOURS = 8
 TIME_STEP_SEC = 30
 TOTAL_STEPS = int((SIM_TIME_HOURS * 3600) / TIME_STEP_SEC)

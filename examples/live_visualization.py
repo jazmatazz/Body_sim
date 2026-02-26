@@ -42,7 +42,7 @@ def run_live_visualization(duration: float = 30.0, pattern_type: str = "alternat
         grid_cols=32,
         mattress_width=0.762,
         mattress_height=1.854,
-        body_weight=70.0,
+        body_weight=80.0,
         time_step=0.5,
         cell_min_height=0.02,   # 2cm min
         cell_max_height=0.25,   # 25cm max - makes movement very visible

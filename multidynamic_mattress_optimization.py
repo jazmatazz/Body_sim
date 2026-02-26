@@ -450,7 +450,7 @@ class SMPLBodyPressureModel:
         'shoulder': 12.0,   # mm deltoid
     }
 
-    def __init__(self, body_mass: float = 75, incline_angle: float = DEFAULT_INCLINE_ANGLE):
+    def __init__(self, body_mass: float = 80, incline_angle: float = DEFAULT_INCLINE_ANGLE):
         """
         Initialize SMPL body model for pressure calculations.
 
@@ -900,7 +900,7 @@ class SMPLBodyPressureModel:
 # Global SMPL body model instance (lazy loaded)
 _smpl_body_model = None
 
-def get_smpl_body_model(body_mass: float = 75, incline_angle: float = DEFAULT_INCLINE_ANGLE) -> SMPLBodyPressureModel:
+def get_smpl_body_model(body_mass: float = 80, incline_angle: float = DEFAULT_INCLINE_ANGLE) -> SMPLBodyPressureModel:
     """Get or create the SMPL body pressure model."""
     global _smpl_body_model
     if _smpl_body_model is None:
@@ -908,7 +908,7 @@ def get_smpl_body_model(body_mass: float = 75, incline_angle: float = DEFAULT_IN
     return _smpl_body_model
 
 
-def create_body_pressure_map(rows: int, cols: int, body_mass: float = 75,
+def create_body_pressure_map(rows: int, cols: int, body_mass: float = 80,
                               incline_angle: float = DEFAULT_INCLINE_ANGLE) -> Tuple[np.ndarray, np.ndarray]:
     """
     Create pressure and shear distribution maps using SMPL body model.
@@ -920,7 +920,7 @@ def create_body_pressure_map(rows: int, cols: int, body_mass: float = 75,
     return model.calculate_pressure_map(rows, cols)
 
 
-def create_body_pressure_map_simplified(rows: int, cols: int, body_mass: float = 75,
+def create_body_pressure_map_simplified(rows: int, cols: int, body_mass: float = 80,
                               incline_angle: float = DEFAULT_INCLINE_ANGLE) -> Tuple[np.ndarray, np.ndarray]:
     """
     Create pressure and shear distribution maps for supine body with bed incline.
@@ -1726,7 +1726,7 @@ def run_single_configuration(cell_size: float,
                               cycle_period: float,
                               simulation_time: float = 7200,  # 2 hours
                               timestep: float = 10,  # 10 second steps
-                              body_mass: float = 75,
+                              body_mass: float = 80,
                               incline_angle: float = DEFAULT_INCLINE_ANGLE,
                               verbose: bool = False,
                               track_deformation: bool = False) -> Dict:
@@ -1864,7 +1864,7 @@ def run_optimization(cell_sizes: List[float] = None,
                      patterns: List[str] = None,
                      cycle_periods: List[float] = None,
                      simulation_time: float = 7200,
-                     body_mass: float = 75,
+                     body_mass: float = 80,
                      incline_angle: float = DEFAULT_INCLINE_ANGLE,
                      verbose: bool = True) -> Dict:
     """
@@ -2194,7 +2194,7 @@ if __name__ == "__main__":
         patterns=list(MOVEMENT_PATTERNS.keys()),
         cycle_periods=[60, 180, 300, 600],  # 1, 3, 5, 10 minutes
         simulation_time=7200,  # 2 hours
-        body_mass=75,
+        body_mass=80,
         incline_angle=30,  # 30 degree head-of-bed elevation
         verbose=True
     )
