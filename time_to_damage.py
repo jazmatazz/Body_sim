@@ -39,6 +39,108 @@ APM_DEFLATED_RELIEF = 0.85      # Deflated cells provide additional 85% relief
 
 
 # =============================================================================
+# STII - STRAIN-TIME INJURY INDEX (Linder-Ganz/Gefen 2007)
+# =============================================================================
+# Sigmoid strain-time relationship:
+#   - Tissue tolerates 65% strain for ~1 hour
+#   - Tolerance drops to 40% strain by 4 hours
+#   - Transition centered at ~90 minutes
+#
+# STII models cumulative strain exposure relative to time-varying threshold
+
+# Strain tolerance parameters
+STII_STRAIN_THRESHOLD_1H = 0.65   # 65% strain tolerable for 1 hour
+STII_STRAIN_THRESHOLD_4H = 0.40   # 40% strain tolerable for 4+ hours
+STII_TRANSITION_TIME = 5400.0     # 90 min = inflection point (seconds)
+STII_STEEPNESS = 0.002            # Sigmoid steepness parameter
+
+# Three-phase damage response
+STII_LAG_PHASE_HOURS = 0.5        # Initial 30-min lag (cellular adaptation)
+STII_RAPID_PHASE_HOURS = 2.0      # Rapid escalation phase
+STII_PLATEAU_PHASE_HOURS = 6.0    # Damage plateaus after this
+
+# Pressure-to-strain conversion (Gefen approximation)
+# Interface pressure (mmHg) → tissue strain (%)
+PRESSURE_TO_STRAIN_FACTOR = 0.008  # 1 mmHg ≈ 0.8% strain at bone-muscle interface
+
+
+def calculate_strain_threshold(time_seconds: float) -> float:
+    """
+    Calculate time-varying strain threshold using sigmoid model.
+
+    Based on Linder-Ganz & Gefen (2007): tissue tolerance decreases
+    sigmoidally from 65% strain (1h) to 40% strain (4h+).
+
+    Args:
+        time_seconds: Cumulative loading time in seconds
+
+    Returns:
+        Maximum tolerable strain (0-1) at this time point
+    """
+    # Sigmoid transition from high to low tolerance
+    sigmoid = 1 / (1 + np.exp(STII_STEEPNESS * (time_seconds - STII_TRANSITION_TIME)))
+
+    # Interpolate between 1h and 4h thresholds
+    threshold = STII_STRAIN_THRESHOLD_4H + \
+                (STII_STRAIN_THRESHOLD_1H - STII_STRAIN_THRESHOLD_4H) * sigmoid
+
+    return threshold
+
+
+def calculate_stii(pressure_mmHg: float, time_seconds: float,
+                   cumulative_strain_exposure: float = 0.0) -> dict:
+    """
+    Calculate Strain-Time Injury Index (Linder-Ganz/Gefen model).
+
+    STII measures how close current strain is to the time-varying threshold.
+    STII = actual_strain / threshold_strain
+
+    STII > 1.0 indicates injury threshold exceeded.
+
+    Args:
+        pressure_mmHg: Current interface pressure
+        time_seconds: Current time in simulation
+        cumulative_strain_exposure: Previous cumulative STII (for tracking)
+
+    Returns:
+        Dict with STII metrics
+    """
+    # Convert pressure to tissue strain
+    actual_strain = pressure_mmHg * PRESSURE_TO_STRAIN_FACTOR
+
+    # Get time-varying threshold
+    threshold_strain = calculate_strain_threshold(time_seconds)
+
+    # Calculate instantaneous STII
+    instant_stii = actual_strain / threshold_strain if threshold_strain > 0 else 0
+
+    # Apply three-phase damage response
+    time_hours = time_seconds / 3600
+
+    if time_hours < STII_LAG_PHASE_HOURS:
+        # Lag phase: cellular adaptation, reduced damage rate
+        phase_factor = 0.3
+    elif time_hours < STII_RAPID_PHASE_HOURS:
+        # Rapid phase: accelerated damage
+        phase_factor = 1.5
+    else:
+        # Plateau phase: damage rate stabilizes
+        phase_factor = 1.0
+
+    # Weighted STII accumulation
+    weighted_stii = instant_stii * phase_factor
+
+    return {
+        'instant_stii': instant_stii,
+        'weighted_stii': weighted_stii,
+        'actual_strain': actual_strain,
+        'threshold_strain': threshold_strain,
+        'phase_factor': phase_factor,
+        'threshold_exceeded': instant_stii > 1.0,
+    }
+
+
+# =============================================================================
 # PERFUSION RECOVERY MODEL
 # =============================================================================
 # Based on reactive hyperemia studies (Bader 1990, Herrman 1999, Makhsous 2007)
@@ -229,7 +331,9 @@ def compute_damage_accumulation(pressure_history: list, dt_hours: float,
                                  threshold_func=reswick_rogers_threshold,
                                  use_perfusion_recovery: bool = True) -> dict:
     """
-    Compute cumulative damage using Miner's rule with perfusion recovery.
+    Compute cumulative damage using multiple models:
+    1. Miner's rule with perfusion recovery (traditional)
+    2. STII - Strain-Time Injury Index (Linder-Ganz/Gefen 2007)
 
     Damage fraction D = Σ (t_i / T_safe_i) × vulnerability_i
     where:
@@ -246,19 +350,25 @@ def compute_damage_accumulation(pressure_history: list, dt_hours: float,
         use_perfusion_recovery: If True, apply perfusion recovery modeling
 
     Returns:
-        Dict with damage metrics including perfusion history
+        Dict with damage metrics including STII and perfusion history
     """
     cumulative_damage = 0.0
+    cumulative_stii = 0.0
     damage_history = []
+    stii_history = []
     perfusion_history = []
     vulnerability_history = []
     time_to_damage = None
+    time_to_stii_damage = None
 
     # Initialize perfusion state tracker
     perfusion_state = PerfusionState() if use_perfusion_recovery else None
     dt_minutes = dt_hours * 60
+    dt_seconds = dt_hours * 3600
 
     for i, pressure in enumerate(pressure_history):
+        time_seconds = i * dt_seconds
+
         # Update perfusion state
         if perfusion_state:
             perfusion = perfusion_state.update(pressure, dt_minutes)
@@ -270,7 +380,15 @@ def compute_damage_accumulation(pressure_history: list, dt_hours: float,
         perfusion_history.append(perfusion)
         vulnerability_history.append(vulnerability)
 
-        # Calculate damage with vulnerability multiplier
+        # Calculate STII for this time point
+        stii_result = calculate_stii(pressure, time_seconds, cumulative_stii)
+        cumulative_stii += stii_result['weighted_stii'] * dt_hours
+        stii_history.append(cumulative_stii)
+
+        if time_to_stii_damage is None and cumulative_stii >= 1.0:
+            time_to_stii_damage = i * dt_hours
+
+        # Calculate traditional damage with vulnerability multiplier
         safe_time = threshold_func(pressure)
         if safe_time > 0 and safe_time != float('inf'):
             # Base damage increment
@@ -288,12 +406,18 @@ def compute_damage_accumulation(pressure_history: list, dt_hours: float,
             time_to_damage = i * dt_hours
 
     return {
+        # Traditional damage metrics
         'cumulative_damage': cumulative_damage,
         'damage_history': damage_history,
-        'perfusion_history': perfusion_history,
-        'vulnerability_history': vulnerability_history,
         'time_to_damage_hours': time_to_damage,
         'final_damage_fraction': cumulative_damage,
+        # STII metrics (Linder-Ganz/Gefen 2007)
+        'cumulative_stii': cumulative_stii,
+        'stii_history': stii_history,
+        'time_to_stii_damage_hours': time_to_stii_damage,
+        # Perfusion metrics
+        'perfusion_history': perfusion_history,
+        'vulnerability_history': vulnerability_history,
         'min_perfusion': min(perfusion_history) if perfusion_history else 1.0,
         'avg_perfusion': np.mean(perfusion_history) if perfusion_history else 1.0,
     }
@@ -449,22 +573,46 @@ def create_damage_visualization(all_results: dict, total_time_hours: float):
               '#e74c3c' if name == 'Standard Foam' else
               '#3498db' for name in config_names]
 
-    # Create figure with 3 rows: bar charts, damage curves, perfusion
+    # Extract STII damage for bar chart
+    stii_ttd = []
+    for name in config_names:
+        s_ttd = all_results[name]['reswick'].get('time_to_stii_damage_hours')
+        stii_ttd.append(s_ttd if s_ttd is not None else total_time_hours)
+
+    # Calculate percent changes for table
+    baseline_pressure = avg_pressures[0]
+    baseline_surface = reswick_ttd[0]
+    baseline_dti = gefen_ttd[0]
+    baseline_stii = all_results[config_names[0]]['reswick'].get('cumulative_stii', 0)
+    baseline_damage = reswick_damage[0]
+
+    pct_pressure = [((p - baseline_pressure) / baseline_pressure * 100) if baseline_pressure > 0 else 0 for p in avg_pressures]
+    pct_dti = [((d - baseline_dti) / baseline_dti * 100) if baseline_dti > 0 else 0 for d in gefen_ttd]
+    stii_values = [all_results[name]['reswick'].get('cumulative_stii', 0) for name in config_names]
+    pct_stii = [((s - baseline_stii) / baseline_stii * 100) if baseline_stii > 0 else 0 for s in stii_values]
+    pct_damage = [((d - baseline_damage) / baseline_damage * 100) if baseline_damage > 0 else 0 for d in reswick_damage]
+    dti_efficiency = [(d / baseline_dti * 100) if baseline_dti > 0 else 100 for d in gefen_ttd]
+
+    # Create figure with 4 rows: bar charts, damage curves, STII/perfusion, data table
     fig = make_subplots(
-        rows=3, cols=2,
+        rows=4, cols=2,
         subplot_titles=[
-            '<b>Predicted Time to Surface Damage</b><br><sup>Reswick-Rogers Model</sup>',
-            '<b>Predicted Time to Deep Tissue Injury</b><br><sup>Gefen Model</sup>',
-            '<b>Damage Accumulation Over 8 Hours</b><br><sup>Surface Damage (Reswick-Rogers)</sup>',
-            '<b>Damage Accumulation Over 8 Hours</b><br><sup>Deep Tissue Injury (Gefen)</sup>',
-            '<b>Tissue Perfusion Level</b><br><sup>1.0 = fully perfused, 0.0 = ischemic</sup>',
-            '<b>Damage Vulnerability</b><br><sup>Increased when perfusion incomplete</sup>',
+            '<b>Time to Surface Damage</b><br><sup>Reswick-Rogers Model</sup>',
+            '<b>Time to Deep Tissue Injury</b><br><sup>Gefen DTI Model</sup>',
+            '<b>Damage Accumulation (Surface)</b><br><sup>Reswick-Rogers</sup>',
+            '<b>Damage Accumulation (DTI)</b><br><sup>Gefen Model</sup>',
+            '<b>STII - Strain-Time Injury Index</b><br><sup>Linder-Ganz & Gefen (2007)</sup>',
+            '<b>Tissue Perfusion Level</b><br><sup>1.0 = perfused, 0.0 = ischemic</sup>',
+            '<b>Data Table: Raw Values</b>',
+            '<b>Data Table: Percent Change from Foam</b>',
         ],
-        vertical_spacing=0.10,
-        horizontal_spacing=0.1,
+        vertical_spacing=0.08,
+        horizontal_spacing=0.08,
         specs=[[{"type": "bar"}, {"type": "bar"}],
                [{"type": "scatter"}, {"type": "scatter"}],
-               [{"type": "scatter"}, {"type": "scatter"}]]
+               [{"type": "scatter"}, {"type": "scatter"}],
+               [{"type": "table"}, {"type": "table"}]],
+        row_heights=[0.22, 0.22, 0.22, 0.34]
     )
 
     # Panel 1: Time to surface damage (bar chart)
@@ -548,7 +696,33 @@ def create_damage_visualization(all_results: dict, total_time_hours: float):
     fig.add_hline(y=1.0, line_dash="dash", line_color="red",
                   annotation_text="Damage Threshold", row=2, col=2)
 
-    # Panel 5: Perfusion level over time
+    # Panel 5: STII - Strain-Time Injury Index curves
+    for i, name in enumerate(config_names):
+        stii_history = all_results[name]['reswick'].get('stii_history', [0.0] * len(time_hours))
+        fig.add_trace(
+            go.Scatter(
+                x=time_hours,
+                y=stii_history,
+                mode='lines',
+                name=name,
+                line=dict(
+                    color='#2ecc71' if name == 'Evolved Optimal' else
+                          '#e74c3c' if name == 'Standard Foam' else
+                          '#3498db',
+                    width=3 if name in ['Evolved Optimal', 'Standard Foam'] else 1,
+                ),
+                opacity=1.0 if name in ['Evolved Optimal', 'Standard Foam'] else 0.4,
+                showlegend=False,
+                hovertemplate=f'{name}<br>Time: %{{x:.1f}}h<br>STII: %{{y:.2f}}<extra></extra>'
+            ),
+            row=3, col=1
+        )
+
+    # Add STII threshold line
+    fig.add_hline(y=1.0, line_dash="dash", line_color="red",
+                  annotation_text="Injury Threshold", row=3, col=1)
+
+    # Panel 6: Perfusion level over time
     for i, name in enumerate(config_names):
         perfusion_history = all_results[name]['reswick'].get('perfusion_history', [1.0] * len(time_hours))
         fig.add_trace(
@@ -567,82 +741,116 @@ def create_damage_visualization(all_results: dict, total_time_hours: float):
                 showlegend=False,
                 hovertemplate=f'{name}<br>Time: %{{x:.1f}}h<br>Perfusion: %{{y:.2f}}<extra></extra>'
             ),
-            row=3, col=1
+            row=3, col=2
         )
 
     # Add perfusion threshold line
     fig.add_hline(y=INCOMPLETE_RECOVERY_THRESHOLD, line_dash="dash", line_color="orange",
-                  annotation_text="Recovery Threshold", row=3, col=1)
+                  annotation_text="Recovery Threshold", row=3, col=2)
 
-    # Panel 6: Vulnerability over time
-    for i, name in enumerate(config_names):
-        vulnerability_history = all_results[name]['reswick'].get('vulnerability_history', [1.0] * len(time_hours))
-        fig.add_trace(
-            go.Scatter(
-                x=time_hours,
-                y=vulnerability_history,
-                mode='lines',
-                name=name,
-                line=dict(
-                    color='#2ecc71' if name == 'Evolved Optimal' else
-                          '#e74c3c' if name == 'Standard Foam' else
-                          '#3498db',
-                    width=3 if name in ['Evolved Optimal', 'Standard Foam'] else 1,
-                ),
-                opacity=1.0 if name in ['Evolved Optimal', 'Standard Foam'] else 0.4,
-                showlegend=False,
-                hovertemplate=f'{name}<br>Time: %{{x:.1f}}h<br>Vulnerability: %{{y:.2f}}x<extra></extra>'
+    # Panel 7: Data Table - Raw Values
+    fig.add_trace(
+        go.Table(
+            header=dict(
+                values=['<b>Configuration</b>', '<b>Pressure<br>(mmHg)</b>', '<b>Surface<br>(hours)</b>',
+                        '<b>DTI<br>(hours)</b>', '<b>STII</b>', '<b>Damage</b>'],
+                fill_color='#2c3e50',
+                font=dict(color='white', size=11),
+                align='left',
+                height=28
             ),
-            row=3, col=2
-        )
+            cells=dict(
+                values=[
+                    config_names,
+                    [f'{p:.1f}' for p in avg_pressures],
+                    [f'{s:.1f}' for s in reswick_ttd],
+                    [f'{d:.1f}' for d in gefen_ttd],
+                    [f'{s:.2f}' for s in stii_values],
+                    [f'{d:.2f}' for d in reswick_damage],
+                ],
+                fill_color=[['#2ecc71' if n == 'Evolved Optimal' else '#e74c3c' if n == 'Standard Foam' else 'white' for n in config_names]] + [['white'] * len(config_names)] * 5,
+                font=dict(size=10),
+                align='left',
+                height=22
+            )
+        ),
+        row=4, col=1
+    )
 
-    # Add baseline vulnerability line
-    fig.add_hline(y=1.0, line_dash="dash", line_color="green",
-                  annotation_text="Baseline", row=3, col=2)
+    # Panel 8: Data Table - Percent Change
+    fig.add_trace(
+        go.Table(
+            header=dict(
+                values=['<b>Configuration</b>', '<b>Pressure<br>Change (%)</b>', '<b>DTI<br>Change (%)</b>',
+                        '<b>STII<br>Change (%)</b>', '<b>Damage<br>Change (%)</b>', '<b>DTI<br>Efficiency (%)</b>'],
+                fill_color='#2c3e50',
+                font=dict(color='white', size=11),
+                align='left',
+                height=28
+            ),
+            cells=dict(
+                values=[
+                    config_names,
+                    ['Baseline' if i == 0 else f'{pct_pressure[i]:+.1f}' for i in range(len(config_names))],
+                    ['Baseline' if i == 0 else f'{pct_dti[i]:+.1f}' for i in range(len(config_names))],
+                    ['Baseline' if i == 0 else f'{pct_stii[i]:+.1f}' for i in range(len(config_names))],
+                    ['Baseline' if i == 0 else f'{pct_damage[i]:+.1f}' for i in range(len(config_names))],
+                    [f'{e:.0f}' for e in dti_efficiency],
+                ],
+                fill_color=[['#2ecc71' if n == 'Evolved Optimal' else '#e74c3c' if n == 'Standard Foam' else 'white' for n in config_names]] + [['white'] * len(config_names)] * 5,
+                font=dict(size=10),
+                align='left',
+                height=22
+            )
+        ),
+        row=4, col=2
+    )
 
     # Update layout
     fig.update_layout(
         title=dict(
-            text='<b>Predicted Time-to-Damage Analysis with Perfusion Recovery</b><br>'
-                 '<sup>Sacrum region | 8-hour simulation | Reswick-Rogers, Gefen + Perfusion Recovery Model</sup>',
+            text='<b>Tissue Damage Analysis: STII (Strain-Time Injury Index)</b><br>'
+                 '<sup>Sacrum region | 8-hour simulation | Linder-Ganz & Gefen (2007), Reswick-Rogers</sup>',
             x=0.5,
             font=dict(size=20)
         ),
-        height=1200,
-        width=1400,
+        height=1600,
+        width=1500,
         showlegend=True,
         legend=dict(
             orientation="h",
             yanchor="bottom",
-            y=-0.08,
+            y=-0.05,
             xanchor="center",
             x=0.5
         ),
     )
 
-    # Update axes
+    # Update axes for chart rows (tables don't need axis updates)
     fig.update_xaxes(tickangle=45, row=1, col=1)
     fig.update_xaxes(tickangle=45, row=1, col=2)
     fig.update_yaxes(title_text="Time (hours)", range=[0, total_time_hours * 1.1], row=1, col=1)
     fig.update_yaxes(title_text="Time (hours)", range=[0, total_time_hours * 1.1], row=1, col=2)
+    # Row 2: Damage accumulation
     fig.update_xaxes(title_text="Time (hours)", row=2, col=1)
     fig.update_xaxes(title_text="Time (hours)", row=2, col=2)
     fig.update_yaxes(title_text="Cumulative Damage", row=2, col=1)
     fig.update_yaxes(title_text="Cumulative Damage", row=2, col=2)
+    # Row 3: STII and Perfusion
     fig.update_xaxes(title_text="Time (hours)", row=3, col=1)
     fig.update_xaxes(title_text="Time (hours)", row=3, col=2)
-    fig.update_yaxes(title_text="Perfusion Level", range=[0, 1.1], row=3, col=1)
-    fig.update_yaxes(title_text="Vulnerability (x)", range=[0.9, 1.6], row=3, col=2)
+    fig.update_yaxes(title_text="Cumulative STII", row=3, col=1)
+    fig.update_yaxes(title_text="Perfusion Level", range=[0, 1.1], row=3, col=2)
 
     fig.write_html('time_to_damage.html', include_plotlyjs=True, full_html=True)
     print(f"\nSaved: time_to_damage.html")
 
     # Print summary table
     print("\n" + "=" * 120)
-    print("TIME-TO-DAMAGE PREDICTION SUMMARY (8 HOURS) - WITH PERFUSION RECOVERY")
+    print("TIME-TO-DAMAGE PREDICTION SUMMARY (8 HOURS) - STII FORMAL INDEX")
     print("=" * 120)
-    print(f"{'Configuration':<28} {'Avg Press':>9} {'Surface':>10} {'DTI':>10} {'Damage':>10} {'Min Perf':>10} {'Avg Perf':>10}")
-    print(f"{'':28} {'(mmHg)':>9} {'(hours)':>10} {'(hours)':>10} {'Fraction':>10} {'':>10} {'':>10}")
+    print(f"{'Configuration':<28} {'Avg Press':>9} {'Surface':>10} {'DTI':>10} {'STII':>8} {'Damage':>10} {'Min Perf':>10}")
+    print(f"{'':28} {'(mmHg)':>9} {'(hours)':>10} {'(hours)':>10} {'':>8} {'Fraction':>10} {'':>10}")
     print("-" * 120)
 
     foam_reswick = all_results['Standard Foam']['reswick']['time_to_damage_hours']
@@ -656,27 +864,26 @@ def create_damage_visualization(all_results: dict, total_time_hours: float):
         r_str = f"{r_ttd:.1f}" if r_ttd else ">8.0"
         g_str = f"{g_ttd:.1f}" if g_ttd else ">8.0"
 
+        stii = r['reswick'].get('cumulative_stii', 0)
         min_perf = r['reswick'].get('min_perfusion', 1.0)
-        avg_perf = r['reswick'].get('avg_perfusion', 1.0)
 
         print(f"{name:<28} {r['avg_pressure']:>9.1f} {r_str:>10} {g_str:>10} "
-              f"{r['reswick']['final_damage_fraction']:>10.2f} {min_perf:>10.2f} {avg_perf:>10.2f}")
+              f"{stii:>8.2f} {r['reswick']['final_damage_fraction']:>10.2f} {min_perf:>10.2f}")
 
     print("-" * 120)
-    print("\nDamage Models:")
+    print("\nSTII - STRAIN-TIME INJURY INDEX (Linder-Ganz & Gefen 2007):")
+    print("  Sigmoid strain tolerance: tissue tolerates 65% strain for 1h, drops to 40% by 4h")
+    print("  STII >= 1.0 indicates injury threshold exceeded")
+    print("\nTRADITIONAL MODELS:")
     print("  - Reswick-Rogers (1976): Surface damage pressure-time relationship")
-    print("  - Gefen (2008): Deep tissue injury at bone-muscle interface")
-    print("\nPerfusion Recovery Model:")
+    print("  - Gefen DTI (2008): Deep tissue injury at bone-muscle interface")
+    print("\nPERFUSION RECOVERY MODEL:")
     print("  - Blood flow doesn't instantly return when pressure removed")
     print("  - Recovery rate depends on ischemia duration:")
     print(f"      Short (<{SHORT_ISCHEMIA_THRESHOLD:.0f} min): Fast recovery ({PERFUSION_RECOVERY_RATE_FAST*100:.0f}%/min)")
     print(f"      Medium ({SHORT_ISCHEMIA_THRESHOLD:.0f}-{PROLONGED_ISCHEMIA_THRESHOLD:.0f} min): Normal recovery ({PERFUSION_RECOVERY_RATE_BASE*100:.0f}%/min)")
     print(f"      Prolonged (>{PROLONGED_ISCHEMIA_THRESHOLD:.0f} min): Slow recovery ({PERFUSION_RECOVERY_RATE_SLOW*100:.0f}%/min)")
     print(f"  - Tissue {RECOVERY_VULNERABILITY_FACTOR:.0%} more vulnerable during incomplete recovery")
-    print("\nMetrics:")
-    print("  - Damage Fraction: 1.0 = tissue damage predicted, <1.0 = no damage")
-    print("  - Min Perfusion: Lowest perfusion reached (0=ischemic, 1=normal)")
-    print("  - Avg Perfusion: Mean perfusion over 8 hours")
 
 
 if __name__ == "__main__":

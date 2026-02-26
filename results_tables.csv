@@ -1,0 +1,69 @@
+TABLE 1: MATTRESS CONFIGURATION COMPARISON
+Legend: Comparison of 13 mattress configurations over 8-hour simulation. Baseline: Standard Foam. APM = Alternating Pressure Mattress.
+
+Configuration,Pressure (mmHg),Surface Damage (hours),DTI (hours),STII,Damage Fraction
+Standard Foam,65.30,1.80,1.00,10.12,4.39
+Alternating Checkerboard,65.30,1.80,1.00,10.12,4.39
+Horizontal Wave,64.80,1.80,1.00,10.04,4.34
+Vertical Wave,65.30,1.80,1.00,10.12,4.39
+Zone-Based Adaptive,45.30,4.70,2.80,6.96,1.67
+Circular Wave,63.50,1.80,1.00,9.83,4.22
+Diagonal Wave,64.90,1.80,1.00,10.03,4.34
+Row Groups (size=1),65.30,1.80,1.00,10.12,4.39
+Row Groups (size=2),47.40,4.70,1.90,7.33,1.79
+Row Groups (size=3),42.70,4.40,2.70,6.61,1.87
+Multi-Frequency Zones,65.30,1.80,1.00,10.12,4.39
+Sequential Rows,65.30,1.80,1.00,10.12,4.39
+Evolved Optimal,39.90,7.60,5.20,6.16,1.07
+
+
+TABLE 2: PERCENT CHANGE FROM BASELINE
+Legend: Negative = improvement (reduction). Positive for Surface/DTI = longer time to injury (improvement).
+
+Configuration,Pressure Change (%),Surface Damage Change (%),DTI Change (%),STII Change (%),Damage Change (%)
+Standard Foam,Baseline,Baseline,Baseline,Baseline,Baseline
+Alternating Checkerboard,0.00,0.00,0.00,0.00,0.00
+Horizontal Wave,-0.80,0.00,0.00,-0.80,-1.10
+Vertical Wave,0.00,0.00,0.00,0.00,0.00
+Zone-Based Adaptive,-30.60,161.10,180.00,-31.20,-62.00
+Circular Wave,-2.80,0.00,0.00,-2.90,-3.90
+Diagonal Wave,-0.60,0.00,0.00,-0.90,-1.10
+Row Groups (size=1),0.00,0.00,0.00,0.00,0.00
+Row Groups (size=2),-27.40,161.10,90.00,-27.60,-59.20
+Row Groups (size=3),-34.60,144.40,170.00,-34.70,-57.40
+Multi-Frequency Zones,0.00,0.00,0.00,0.00,0.00
+Sequential Rows,0.00,0.00,0.00,0.00,0.00
+Evolved Optimal,-38.90,322.20,420.00,-39.10,-75.60
+
+
+TABLE 3: STATISTICAL ANALYSIS
+Legend: Statistical tests comparing mattress performance groups.
+
+Test,Groups Compared,n1,n2,Statistic,p-value,Significant
+Independent t-test,Effective vs Ineffective APM,4,8,t = -18.62,< 0.001,Yes
+Linear Regression,Pressure vs DTI Time,13,13,R² = 0.80,< 0.001,Yes
+Linear Regression,Pressure vs STII,13,13,R² = 1.00,< 0.001,Yes
+One-Way ANOVA,Basic vs Optimized APM,8,4,F = 482.82,< 0.001,Yes
+
+Regression Equations:
+Time to DTI = -0.1086 × Pressure + 8.0134
+STII = 0.1560 × Pressure - 0.0701
+
+
+TABLE 4: EFFICIENCY CALCULATIONS
+Legend: DTI Efficiency = (DTI Time / Baseline) × 100%. Damage Reduction = (1 - Damage/Baseline) × 100%.
+
+Configuration,DTI Efficiency (%),Damage Reduction Efficiency (%)
+Standard Foam,100.00,0.00
+Alternating Checkerboard,100.00,0.00
+Horizontal Wave,100.00,1.10
+Vertical Wave,100.00,0.00
+Zone-Based Adaptive,280.00,62.00
+Circular Wave,100.00,3.90
+Diagonal Wave,100.00,1.10
+Row Groups (size=1),100.00,0.00
+Row Groups (size=2),190.00,59.20
+Row Groups (size=3),270.00,57.40
+Multi-Frequency Zones,100.00,0.00
+Sequential Rows,100.00,0.00
+Evolved Optimal,520.00,75.60

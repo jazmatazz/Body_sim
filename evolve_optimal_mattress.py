@@ -63,6 +63,112 @@ AMC_SHEAR_FACTOR = 0.15         # Shear also reduced by mattress
 
 
 # =============================================================================
+# BODY REGIONS FOR WHOLE-BODY OPTIMIZATION
+# =============================================================================
+# Each region defined by (row_start, row_end) as fraction of body length
+# Risk weight based on clinical pressure ulcer incidence (NPUAP data)
+BODY_REGIONS = {
+    'head_occiput': {
+        'bounds': (0.00, 0.08),
+        'risk_weight': 0.5,   # Lower risk
+    },
+    'scapulae': {
+        'bounds': (0.10, 0.25),
+        'risk_weight': 1.0,   # Moderate risk
+    },
+    'thoracic': {
+        'bounds': (0.25, 0.40),
+        'risk_weight': 0.5,   # Lower risk
+    },
+    'sacrum': {
+        'bounds': (0.40, 0.55),
+        'risk_weight': 3.0,   # HIGHEST risk - 33% of all pressure ulcers
+    },
+    'thighs': {
+        'bounds': (0.55, 0.75),
+        'risk_weight': 0.5,   # Lower risk
+    },
+    'calves': {
+        'bounds': (0.75, 0.92),
+        'risk_weight': 0.8,   # Moderate risk
+    },
+    'heels': {
+        'bounds': (0.92, 1.00),
+        'risk_weight': 2.0,   # HIGH risk - 30% of all pressure ulcers
+    },
+}
+
+
+def get_region_pressure(pressure_map: np.ndarray, bounds: tuple) -> tuple:
+    """Get peak and average pressure for a body region."""
+    h = pressure_map.shape[0]
+    r_start = int(bounds[0] * h)
+    r_end = int(bounds[1] * h)
+    region = pressure_map[r_start:r_end, :]
+    return region.max(), region.mean()
+
+
+def compute_whole_body_dti(pressure_history: list, dt_hours: float) -> dict:
+    """
+    Compute DTI risk for all body regions using Gefen model.
+
+    Returns dict with per-region metrics and weighted total.
+    """
+    h = pressure_history[0].shape[0]
+
+    region_results = {}
+    total_weighted_damage = 0.0
+    total_weight = 0.0
+    worst_time_to_dti = float('inf')
+
+    for region_name, region_info in BODY_REGIONS.items():
+        bounds = region_info['bounds']
+        weight = region_info['risk_weight']
+
+        # Get pressure history for this region
+        region_pressures = []
+        for p in pressure_history:
+            peak, _ = get_region_pressure(p, bounds)
+            region_pressures.append(peak)
+
+        # Compute damage using Miner's rule with Gefen threshold
+        cumulative_damage = 0.0
+        time_to_dti = None
+
+        for i, pressure in enumerate(region_pressures):
+            safe_time = gefen_deep_tissue_threshold(pressure)
+            if safe_time > 0 and safe_time != float('inf'):
+                damage_increment = dt_hours / safe_time
+                cumulative_damage += damage_increment
+
+            if time_to_dti is None and cumulative_damage >= 1.0:
+                time_to_dti = i * dt_hours
+
+        region_results[region_name] = {
+            'avg_pressure': np.mean(region_pressures),
+            'peak_pressure': np.max(region_pressures),
+            'cumulative_damage': cumulative_damage,
+            'time_to_dti': time_to_dti,
+            'weight': weight,
+        }
+
+        # Weighted damage accumulation
+        total_weighted_damage += cumulative_damage * weight
+        total_weight += weight
+
+        # Track worst region
+        if time_to_dti is not None and time_to_dti < worst_time_to_dti:
+            worst_time_to_dti = time_to_dti
+
+    return {
+        'regions': region_results,
+        'weighted_damage': total_weighted_damage / total_weight if total_weight > 0 else 0,
+        'worst_time_to_dti': worst_time_to_dti if worst_time_to_dti != float('inf') else None,
+        'total_weight': total_weight,
+    }
+
+
+# =============================================================================
 # GEFEN DEEP TISSUE INJURY MODEL
 # =============================================================================
 # Based on Gefen A. (2008) and Linder-Ganz E, Gefen A. (2007)
@@ -453,22 +559,24 @@ def evaluate_fitness(genome: PatternGenome, body_pressure: np.ndarray,
     # Simple PTI calculation (for reference metrics)
     final_damage, _ = calculate_cumulative_pti(pressure_history, shear_history, time_step_min)
 
-    # Calculate sacrum location for DTI analysis
-    h, w = body_pressure.shape
-    sacrum_row, sacrum_col = int(0.4 * h), int(0.5 * w)
-
-    # === PRIMARY FITNESS: Time to Deep Tissue Injury (Gefen Model) ===
+    # === PRIMARY FITNESS: WHOLE-BODY DTI OPTIMIZATION ===
     dt_hours = time_step_min / 60
-    time_to_dti, cumulative_dti_damage = compute_time_to_dti(
-        pressure_history, dt_hours, sacrum_row, sacrum_col
-    )
+    whole_body_dti = compute_whole_body_dti(pressure_history, dt_hours)
 
-    # Calculate average sacrum pressure
-    avg_sacrum_pressure = np.mean([
-        p[max(0, sacrum_row-1):min(h, sacrum_row+2),
-          max(0, sacrum_col-1):min(w, sacrum_col+2)].max()
+    # Extract key metrics from whole-body analysis
+    weighted_damage = whole_body_dti['weighted_damage']
+    worst_time_to_dti = whole_body_dti['worst_time_to_dti']
+    region_results = whole_body_dti['regions']
+
+    # Calculate whole-body average pressure
+    avg_whole_body_pressure = np.mean([
+        np.mean([get_region_pressure(p, r['bounds'])[0] for r in BODY_REGIONS.values()])
         for p in pressure_history
     ])
+
+    # Sacrum-specific metrics (for backwards compatibility)
+    sacrum_info = region_results.get('sacrum', {})
+    avg_sacrum_pressure = sacrum_info.get('avg_pressure', 0)
 
     # Secondary metrics
     max_pti = final_damage.max()
@@ -484,40 +592,41 @@ def evaluate_fitness(genome: PatternGenome, body_pressure: np.ndarray,
     min_perfusion = min(perfusion_history) if perfusion_history else 1.0
     avg_perfusion = np.mean(perfusion_history) if perfusion_history else 1.0
 
-    # === FITNESS FUNCTION: MAXIMIZE TIME TO DTI WITH PERFUSION ===
-    # Primary goal: maximize time until deep tissue injury
-    # Secondary goal: maintain good tissue perfusion
-    # If no DTI within simulation, use inverse of damage fraction
+    # === FITNESS FUNCTION: WHOLE-BODY DTI OPTIMIZATION ===
+    # Primary goal: minimize weighted damage across ALL body regions
+    # Weight by clinical risk (sacrum 3x, heels 2x, others 0.5-1x)
 
     simulation_hours = simulation_minutes / 60
 
-    if time_to_dti is not None:
-        # DTI occurred - fitness is the time until it happened
-        # Scale so longer time = higher fitness
-        fitness = time_to_dti * 10.0
+    if worst_time_to_dti is not None:
+        # DTI occurred somewhere - fitness is time until first DTI
+        fitness = worst_time_to_dti * 10.0
     else:
-        # No DTI within simulation - excellent!
-        # Fitness based on how far below damage threshold we stayed
-        # Lower cumulative damage = higher fitness
-        if cumulative_dti_damage > 0:
-            # Bonus for staying under threshold, scaled by how much margin
-            fitness = simulation_hours * 10.0 + (1.0 / cumulative_dti_damage) * 5.0
+        # No DTI in any region - excellent!
+        if weighted_damage > 0:
+            # Bonus based on how far below damage threshold
+            fitness = simulation_hours * 10.0 + (1.0 / weighted_damage) * 5.0
         else:
             # No damage at all - maximum fitness
             fitness = simulation_hours * 10.0 + 100.0
 
-    # Small penalties for secondary factors (don't dominate DTI optimization)
-    fitness -= avg_sacrum_pressure * 0.01  # Small penalty for high pressure
-    fitness -= at_risk_cells * 0.001       # Small penalty for at-risk cells
+    # Penalties for whole-body pressure (not just sacrum)
+    fitness -= avg_whole_body_pressure * 0.02  # Whole body pressure penalty
+    fitness -= at_risk_cells * 0.001           # At-risk cells penalty
 
-    # Perfusion tracked for reporting only - not used in fitness
-    # The DTI model already captures the damage from ischemia
-    # Adding perfusion to fitness creates redundant/conflicting signals
+    # Bonus for reducing high-risk regions (sacrum, heels)
+    sacrum_damage = region_results.get('sacrum', {}).get('cumulative_damage', 0)
+    heels_damage = region_results.get('heels', {}).get('cumulative_damage', 0)
+    if sacrum_damage < 0.5:
+        fitness += 5.0  # Bonus for low sacrum damage
+    if heels_damage < 0.5:
+        fitness += 3.0  # Bonus for low heel damage
 
     metrics = {
-        'time_to_dti': time_to_dti,  # hours (None if no DTI)
-        'dti_damage_fraction': cumulative_dti_damage,
+        'worst_time_to_dti': worst_time_to_dti,  # hours (None if no DTI in any region)
+        'weighted_damage': weighted_damage,
         'avg_sacrum_pressure': avg_sacrum_pressure,
+        'avg_whole_body_pressure': avg_whole_body_pressure,
         'max_pti': max_pti,  # mmHg·hours
         'at_risk_cells': at_risk_cells,
         'avg_peak_pressure': avg_peak_pressure,
@@ -526,6 +635,7 @@ def evaluate_fitness(genome: PatternGenome, body_pressure: np.ndarray,
         'relief_coverage': relief_coverage,
         'min_perfusion': min_perfusion,
         'avg_perfusion': avg_perfusion,
+        'region_damage': {name: r['cumulative_damage'] for name, r in region_results.items()},
     }
 
     return fitness, metrics
@@ -665,12 +775,12 @@ class GeneticOptimizer:
             if verbose:
                 print(f"  Best Fitness: {best.fitness:.4f}")
                 print(f"  Avg Fitness:  {avg_fitness:.4f}")
-                dti_time = metrics.get('time_to_dti')
+                dti_time = metrics.get('worst_time_to_dti')
                 dti_str = f"{dti_time:.1f}h" if dti_time else ">2h (no DTI)"
-                print(f"  Time to DTI:  {dti_str}")
-                print(f"  DTI Damage:   {metrics.get('dti_damage_fraction', 0):.2f}")
-                print(f"  Sacrum Press: {metrics.get('avg_sacrum_pressure', 0):.1f} mmHg")
-                print(f"  Avg Perfusion: {metrics.get('avg_perfusion', 1.0):.2f}")
+                print(f"  Worst DTI:    {dti_str} (any region)")
+                print(f"  Weighted Dmg: {metrics.get('weighted_damage', 0):.3f}")
+                print(f"  Whole Body:   {metrics.get('avg_whole_body_pressure', 0):.1f} mmHg")
+                print(f"  Sacrum:       {metrics.get('avg_sacrum_pressure', 0):.1f} mmHg")
 
             # Check for convergence
             if best.fitness <= last_best:
