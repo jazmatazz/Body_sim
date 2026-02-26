@@ -57,6 +57,23 @@ QUADRIPLEGIC_FACTORS = {
     'damage_rate_multiplier': 1.5,      # Faster damage accumulation
 }
 
+# Anatomical weight distribution when supine (% of body weight per region)
+# Based on: Defloor T. J Clin Nurs 2000; Hobson DA. Prosthet Orthot Int 1992
+# With 30° incline, weight shifts significantly to sacrum (Moore 2011)
+# Tuned to produce clinically realistic pressures (100-300 mmHg at bony prominences)
+ANATOMICAL_WEIGHT_DISTRIBUTION = {
+    # Region: (z_start, z_end, base_weight_fraction, incline_multiplier)
+    # incline_multiplier: how much weight increases with 30° incline
+    'occiput': (0.00, 0.10, 0.04, 0.6),      # Head: reduced with incline
+    'scapula': (0.10, 0.25, 0.08, 0.7),      # Upper back: reduced with incline
+    'back': (0.25, 0.40, 0.12, 0.8),         # Mid back: slightly reduced
+    'sacrum': (0.40, 0.55, 0.14, 1.6),       # Sacrum: highest with incline (CRITICAL)
+    'buttock': (0.55, 0.65, 0.14, 1.3),      # Buttocks: increased with incline
+    'thigh': (0.65, 0.80, 0.16, 1.0),        # Thighs: unchanged
+    'calf': (0.80, 0.92, 0.14, 1.0),         # Calves: unchanged
+    'heel': (0.92, 1.00, 0.18, 1.2),         # Heels: slight increase with incline
+}
+
 # =============================================================================
 # EVIDENCE-BASED TISSUE THICKNESS VALUES (mm)
 # =============================================================================
@@ -779,14 +796,31 @@ class SMPLBodyPressureModel:
                         # Effective contact count increases with tissue spreading
                         effective_contact = contact_count[i, j] * avg_contact_mult
 
-                        # Base pressure calculation
-                        vertex_fraction = contact_count[i, j] / total_contact_vertices
-                        local_weight = body_weight * vertex_fraction  # N
+                        # Anatomical weight distribution (replaces vertex-based distribution)
+                        row_pos = i / rows
 
-                        # Tissue factor - thin tissue = higher pressure
-                        # Based on clinical measurements: sacrum (3mm tissue) sees ~2-3x
-                        # higher pressure than well-padded areas (25mm tissue)
-                        tissue_factor = 25.0 / tissue_thickness_map[i, j]
+                        # Find which anatomical region this cell is in
+                        anatomical_weight = 0.05  # Default
+                        incline_mult = 1.0
+                        for region, (z_start, z_end, base_weight, inc_mult) in ANATOMICAL_WEIGHT_DISTRIBUTION.items():
+                            if z_start <= row_pos < z_end:
+                                # Weight fraction for this region, distributed across cells in region
+                                region_rows = int((z_end - z_start) * rows)
+                                anatomical_weight = base_weight / max(region_rows, 1)
+                                incline_mult = inc_mult
+                                break
+
+                        # Apply incline effect (30° shifts weight to sacrum)
+                        incline_factor = 1.0 + (incline_mult - 1.0) * (self.incline_angle / 30.0)
+
+                        # Calculate local weight based on anatomical distribution
+                        local_weight = body_weight * anatomical_weight * incline_factor  # N
+
+                        # Tissue factor - thin tissue = higher pressure concentration
+                        # Capped to avoid extreme values when combined with anatomical distribution
+                        # Clinical range: sacrum sees ~1.5-2x higher pressure than padded areas
+                        raw_tissue_factor = 25.0 / tissue_thickness_map[i, j]
+                        tissue_factor = 1.0 + (raw_tissue_factor - 1.0) * 0.3  # Dampen effect
 
                         # Effective area increases with spreading
                         effective_area = cell_area * avg_contact_mult
@@ -797,17 +831,7 @@ class SMPLBodyPressureModel:
                         # Adjust for tissue thickness
                         adjusted_pressure = base_pressure_mmhg * tissue_factor
 
-                        # Apply incline weight shift
-                        row_pos = i / rows
-                        if row_pos < WAIST_HINGE_POSITION:
-                            incline_mod = 1.0 - weight_shift * (WAIST_HINGE_POSITION - row_pos) / WAIST_HINGE_POSITION
-                        elif row_pos < WAIST_HINGE_POSITION + 0.15:
-                            dist_from_hinge = (row_pos - WAIST_HINGE_POSITION) / 0.15
-                            incline_mod = 1.0 + weight_shift * 2.5 * (1 - dist_from_hinge)
-                        else:
-                            incline_mod = 1.0
-
-                        pressure_map[i, j] = adjusted_pressure * incline_mod
+                        pressure_map[i, j] = adjusted_pressure
 
                         # Calculate shear stress
                         if row_pos < WAIST_HINGE_POSITION:

@@ -19,10 +19,8 @@ from multidynamic_mattress_optimization import (
     SMPLBodyPressureModel, MultiDynamicAirMattress,
     CAPILLARY_CLOSING_PRESSURE
 )
-from all_mattress_configs import (
-    RealisticMattressState, calculate_cumulative_damage,
-    QUADRIPLEGIC_SHEAR_FACTOR as AMC_SHEAR_FACTOR
-)
+from all_mattress_pti import RealisticMattressState
+from time_to_damage import PerfusionState, INCOMPLETE_RECOVERY_THRESHOLD
 
 # PTI calculation constants (matching all_mattress_configs.py exactly)
 PRESSURE_THRESHOLD = 32  # mmHg - capillary closing pressure
@@ -49,6 +47,99 @@ CELL_HEIGHT_MAX = 12.0  # cm when fully inflated
 CELL_HEIGHT_MIN = 4.0   # cm when deflated
 
 
+# Shear and moisture factors (matching all_mattress_pti.py)
+SHEAR_THRESHOLD_PTI = 5.0      # mmHg threshold for shear amplification
+SHEAR_AMPLIFICATION = 1.5     # Bennett 1979
+MOISTURE_FACTOR = 1.3         # Beeckman 2014 (level 2: very moist)
+
+# =============================================================================
+# REALISTIC PRESSURE REDISTRIBUTION FACTORS
+# =============================================================================
+# Based on clinical pressure mapping studies (Defloor 2000, Reenalda 2009)
+FOAM_REDISTRIBUTION = 0.15      # Foam reduces peak pressure by ~85%
+APM_INFLATED_REDISTRIBUTION = 0.15  # Inflated APM cells similar to foam
+APM_DEFLATED_RELIEF = 0.85      # Deflated cells provide additional 85% relief
+AMC_SHEAR_FACTOR = 0.15         # Shear also reduced by mattress
+
+
+# =============================================================================
+# GEFEN DEEP TISSUE INJURY MODEL
+# =============================================================================
+# Based on Gefen A. (2008) and Linder-Ganz E, Gefen A. (2007)
+# Deep tissue injury occurs at bone-muscle interface due to stress concentration
+
+def gefen_deep_tissue_threshold(pressure_mmHg: float) -> float:
+    """
+    Gefen (2008) deep tissue injury threshold.
+
+    Returns time to deep tissue injury in hours for given interface pressure.
+    Internal stress at bone is ~2x interface pressure due to geometry.
+    """
+    if pressure_mmHg < 32:
+        return float('inf')  # Below capillary closing pressure
+
+    # Convert to internal stress at bone (2x concentration factor)
+    internal_stress_kPa = pressure_mmHg * 0.1333 * 2.0
+
+    # Gefen model: cell death threshold ~10-20 kPa sustained
+    if internal_stress_kPa < 10:
+        return float('inf')
+    elif internal_stress_kPa < 20:
+        # 10 kPa -> 4h, 20 kPa -> 1h (exponential relationship)
+        return 4.0 * np.exp(-0.139 * (internal_stress_kPa - 10))
+    else:
+        # Rapid damage above 20 kPa
+        return max(0.1, 1.0 * np.exp(-0.05 * (internal_stress_kPa - 20)))
+
+
+def compute_time_to_dti(pressure_history: list, dt_hours: float,
+                        sacrum_row: int, sacrum_col: int) -> Tuple[float, float]:
+    """
+    Compute time until deep tissue injury using Gefen model with Miner's rule.
+
+    Returns:
+        (time_to_dti_hours, cumulative_damage_fraction)
+    """
+    cumulative_damage = 0.0
+    time_to_dti = None
+
+    h, w = pressure_history[0].shape
+
+    for i, pressure_map in enumerate(pressure_history):
+        # Sample sacrum region (3x3 area around sacrum point)
+        r_start = max(0, sacrum_row - 1)
+        r_end = min(h, sacrum_row + 2)
+        c_start = max(0, sacrum_col - 1)
+        c_end = min(w, sacrum_col + 2)
+        sacrum_pressure = pressure_map[r_start:r_end, c_start:c_end].max()
+
+        # Compute damage increment using Miner's rule
+        safe_time = gefen_deep_tissue_threshold(sacrum_pressure)
+        if safe_time > 0 and safe_time != float('inf'):
+            damage_increment = dt_hours / safe_time
+            cumulative_damage += damage_increment
+
+        if time_to_dti is None and cumulative_damage >= 1.0:
+            time_to_dti = i * dt_hours
+
+    return time_to_dti, cumulative_damage
+
+
+def calculate_cumulative_pti(pressure_history, shear_history, time_step_min):
+    """Calculate PTI = Σ (Pressure × Shear_Factor × Moisture_Factor × Time)."""
+    shape = pressure_history[0].shape
+    dt_hours = time_step_min / 60
+    cumulative_pti = np.zeros(shape)
+
+    for i, pressure_map in enumerate(pressure_history):
+        shear_map = shear_history[i] if shear_history else np.zeros_like(pressure_map)
+        shear_factor = np.where(shear_map > SHEAR_THRESHOLD_PTI, SHEAR_AMPLIFICATION, 1.0)
+        pti_increment = pressure_map * shear_factor * MOISTURE_FACTOR * dt_hours
+        cumulative_pti += pti_increment
+
+    return cumulative_pti, None  # Return tuple for compatibility
+
+
 # =============================================================================
 # GENOME DEFINITION
 # =============================================================================
@@ -57,7 +148,7 @@ CELL_HEIGHT_MIN = 4.0   # cm when deflated
 class RegionGenome:
     """Genetic parameters for a single body region."""
     cycle_speed: float      # How fast to cycle (0.5 to 5.0x base rate)
-    wave_type: str          # 'sine', 'square', 'triangle', 'sawtooth'
+    wave_type: str          # 'sine', 'triangle' (gradual transitions only)
     phase_offset: float     # Phase offset (0 to 1)
     min_inflation: float    # Minimum cell inflation (0 to 0.5)
     max_inflation: float    # Maximum cell inflation (0.5 to 1.0)
@@ -67,7 +158,7 @@ class RegionGenome:
         if random.random() < mutation_rate:
             self.cycle_speed = np.clip(self.cycle_speed + random.gauss(0, 0.5), 0.5, 5.0)
         if random.random() < mutation_rate:
-            self.wave_type = random.choice(['sine', 'square', 'triangle', 'sawtooth'])
+            self.wave_type = random.choice(['sine', 'triangle'])  # Gradual transitions only
         if random.random() < mutation_rate:
             self.phase_offset = (self.phase_offset + random.gauss(0, 0.2)) % 1.0
         if random.random() < mutation_rate:
@@ -122,7 +213,7 @@ class PatternGenome:
         for region in cls.REGION_BOUNDS.keys():
             genome.regions[region] = RegionGenome(
                 cycle_speed=random.uniform(0.5, 4.0),
-                wave_type=random.choice(['sine', 'square', 'triangle', 'sawtooth']),
+                wave_type=random.choice(['sine', 'triangle']),  # Gradual transitions only
                 phase_offset=random.random(),
                 min_inflation=random.uniform(0.0, 0.3),
                 max_inflation=random.uniform(0.7, 1.0),
@@ -303,14 +394,21 @@ def evaluate_fitness(genome: PatternGenome, body_pressure: np.ndarray,
     time_points = np.linspace(0, total_time, n_frames, endpoint=False)
     time_step_min = (time_points[1] - time_points[0]) / 60
 
-    # Resample body maps to mattress grid (same as all_mattress_configs.py)
+    # Resample body maps to mattress grid with realistic redistribution
     scale_y = mattress.rows / body_pressure.shape[0]
     scale_x = mattress.cols / body_pressure.shape[1]
-    body_resampled = zoom(body_pressure, (scale_y, scale_x), order=1)
+    body_resampled = zoom(body_pressure, (scale_y, scale_x), order=1) * APM_INFLATED_REDISTRIBUTION
     shear_resampled = zoom(shear_map, (scale_y, scale_x), order=1) * AMC_SHEAR_FACTOR
 
     pressure_history = []
     shear_history = []
+
+    # Track perfusion at sacrum location
+    h, w = body_pressure.shape
+    sacrum_row, sacrum_col = int(0.4 * h), int(0.5 * w)
+    perfusion_state = PerfusionState()
+    perfusion_history = []
+    time_step_min = (time_points[1] - time_points[0]) / 60
 
     for time_sec in time_points:
         # Get target state from pattern
@@ -320,14 +418,15 @@ def evaluate_fitness(genome: PatternGenome, body_pressure: np.ndarray,
         # Apply realistic transition physics (same as all_mattress_configs.py)
         actual_state = realistic_state.update(target_state, time_sec)
 
-        # Calculate pressure with ACTUAL cell states (same as all_mattress_configs.py)
+        # Calculate pressure with ACTUAL cell states (realistic redistribution)
         effective_pressure = body_resampled.copy()
         for row in range(mattress.rows):
             for col in range(mattress.cols):
                 inflation = actual_state[row, col]
                 if inflation < 0.5:
+                    # Deflated cells provide additional pressure relief
                     relief_factor = 1 - inflation
-                    pressure_relieved = effective_pressure[row, col] * relief_factor * 0.7
+                    pressure_relieved = effective_pressure[row, col] * relief_factor * APM_DEFLATED_RELIEF
                     effective_pressure[row, col] -= pressure_relieved
 
         # Shear is reduced when cells deflate (same as all_mattress_configs.py)
@@ -342,10 +441,36 @@ def evaluate_fitness(genome: PatternGenome, body_pressure: np.ndarray,
         pressure_history.append(effective_pressure)
         shear_history.append(effective_shear)
 
-    # Use the EXACT same damage calculation as all_mattress_configs.py
-    final_damage, _ = calculate_cumulative_damage(pressure_history, shear_history, time_step_min, braden_score)
+        # Update perfusion state at sacrum
+        r_start = max(0, sacrum_row - 1)
+        r_end = min(h, sacrum_row + 2)
+        c_start = max(0, sacrum_col - 1)
+        c_end = min(w, sacrum_col + 2)
+        sacrum_pressure = effective_pressure[r_start:r_end, c_start:c_end].max()
+        perfusion_state.update(sacrum_pressure, time_step_min)
+        perfusion_history.append(perfusion_state.perfusion)
 
-    # Calculate fitness metrics (using PTI - mmHg·hours)
+    # Simple PTI calculation (for reference metrics)
+    final_damage, _ = calculate_cumulative_pti(pressure_history, shear_history, time_step_min)
+
+    # Calculate sacrum location for DTI analysis
+    h, w = body_pressure.shape
+    sacrum_row, sacrum_col = int(0.4 * h), int(0.5 * w)
+
+    # === PRIMARY FITNESS: Time to Deep Tissue Injury (Gefen Model) ===
+    dt_hours = time_step_min / 60
+    time_to_dti, cumulative_dti_damage = compute_time_to_dti(
+        pressure_history, dt_hours, sacrum_row, sacrum_col
+    )
+
+    # Calculate average sacrum pressure
+    avg_sacrum_pressure = np.mean([
+        p[max(0, sacrum_row-1):min(h, sacrum_row+2),
+          max(0, sacrum_col-1):min(w, sacrum_col+2)].max()
+        for p in pressure_history
+    ])
+
+    # Secondary metrics
     max_pti = final_damage.max()
     at_risk_cells = (final_damage >= CRITICAL_PTI).sum()
     avg_peak_pressure = np.mean([p.max() for p in pressure_history])
@@ -355,23 +480,52 @@ def evaluate_fitness(genome: PatternGenome, body_pressure: np.ndarray,
     # Relief coverage: cells that stayed below PTI threshold
     relief_coverage = (final_damage < CRITICAL_PTI).sum() / final_damage.size
 
-    # Weighted fitness (lower PTI = higher fitness)
-    # We want to MINIMIZE these, so fitness = 1 / (weighted sum)
-    fitness = 1000 / (
-        max_pti * 2.0 +              # Heavily penalize max PTI
-        at_risk_cells * 10.0 +       # Penalize at-risk cells
-        avg_peak_pressure * 0.5 +    # Moderate penalty for peak pressure
-        avg_shear * 1.0 +            # Shear penalty
-        (1 - relief_coverage) * 50   # Bonus for good relief coverage
-    )
+    # Perfusion metrics
+    min_perfusion = min(perfusion_history) if perfusion_history else 1.0
+    avg_perfusion = np.mean(perfusion_history) if perfusion_history else 1.0
+
+    # === FITNESS FUNCTION: MAXIMIZE TIME TO DTI WITH PERFUSION ===
+    # Primary goal: maximize time until deep tissue injury
+    # Secondary goal: maintain good tissue perfusion
+    # If no DTI within simulation, use inverse of damage fraction
+
+    simulation_hours = simulation_minutes / 60
+
+    if time_to_dti is not None:
+        # DTI occurred - fitness is the time until it happened
+        # Scale so longer time = higher fitness
+        fitness = time_to_dti * 10.0
+    else:
+        # No DTI within simulation - excellent!
+        # Fitness based on how far below damage threshold we stayed
+        # Lower cumulative damage = higher fitness
+        if cumulative_dti_damage > 0:
+            # Bonus for staying under threshold, scaled by how much margin
+            fitness = simulation_hours * 10.0 + (1.0 / cumulative_dti_damage) * 5.0
+        else:
+            # No damage at all - maximum fitness
+            fitness = simulation_hours * 10.0 + 100.0
+
+    # Small penalties for secondary factors (don't dominate DTI optimization)
+    fitness -= avg_sacrum_pressure * 0.01  # Small penalty for high pressure
+    fitness -= at_risk_cells * 0.001       # Small penalty for at-risk cells
+
+    # Perfusion tracked for reporting only - not used in fitness
+    # The DTI model already captures the damage from ischemia
+    # Adding perfusion to fitness creates redundant/conflicting signals
 
     metrics = {
+        'time_to_dti': time_to_dti,  # hours (None if no DTI)
+        'dti_damage_fraction': cumulative_dti_damage,
+        'avg_sacrum_pressure': avg_sacrum_pressure,
         'max_pti': max_pti,  # mmHg·hours
         'at_risk_cells': at_risk_cells,
         'avg_peak_pressure': avg_peak_pressure,
         'avg_cells_over_threshold': avg_cells_over,
         'avg_shear': avg_shear,
         'relief_coverage': relief_coverage,
+        'min_perfusion': min_perfusion,
+        'avg_perfusion': avg_perfusion,
     }
 
     return fitness, metrics
@@ -500,17 +654,23 @@ class GeneticOptimizer:
                 'generation': gen + 1,
                 'best_fitness': best.fitness,
                 'avg_fitness': avg_fitness,
-                'max_pti': metrics['max_pti'],
-                'at_risk_cells': metrics['at_risk_cells'],
-                'avg_shear': metrics['avg_shear'],
+                'time_to_dti': metrics.get('time_to_dti'),
+                'dti_damage_fraction': metrics.get('dti_damage_fraction', 0),
+                'avg_sacrum_pressure': metrics.get('avg_sacrum_pressure', 0),
+                'max_pti': metrics.get('max_pti', 0),
+                'at_risk_cells': metrics.get('at_risk_cells', 0),
+                'avg_shear': metrics.get('avg_shear', 0),
             })
 
             if verbose:
                 print(f"  Best Fitness: {best.fitness:.4f}")
                 print(f"  Avg Fitness:  {avg_fitness:.4f}")
-                print(f"  Peak PTI:     {metrics['max_pti']:.1f} mmHg·h")
-                print(f"  At Risk:      {metrics['at_risk_cells']}")
-                print(f"  Avg Shear:    {metrics['avg_shear']:.1f}")
+                dti_time = metrics.get('time_to_dti')
+                dti_str = f"{dti_time:.1f}h" if dti_time else ">2h (no DTI)"
+                print(f"  Time to DTI:  {dti_str}")
+                print(f"  DTI Damage:   {metrics.get('dti_damage_fraction', 0):.2f}")
+                print(f"  Sacrum Press: {metrics.get('avg_sacrum_pressure', 0):.1f} mmHg")
+                print(f"  Avg Perfusion: {metrics.get('avg_perfusion', 1.0):.2f}")
 
             # Check for convergence
             if best.fitness <= last_best:

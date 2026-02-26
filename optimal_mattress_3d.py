@@ -215,7 +215,7 @@ def create_body_mesh(show_compression: bool = True):
             ],
             cmin=0,
             cmax=1,
-            opacity=1.0,
+            opacity=0.3,
             flatshading=False,
             lighting=dict(
                 ambient=0.5,
@@ -244,7 +244,7 @@ def create_body_mesh(show_compression: bool = True):
             x=vx, y=vy, z=vz,
             i=fi, j=fj, k=fk,
             color='rgb(232, 190, 172)',  # Skin tone
-            opacity=1.0,
+            opacity=0.3,
             flatshading=False,
             lighting=dict(
                 ambient=0.5,
