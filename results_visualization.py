@@ -83,18 +83,18 @@ fig = make_subplots(
         '<b>Figure 4: Damage Reduction Efficiency</b>',
         '<b>Table 1: Raw Data</b>',
         '<b>Table 2: Percent Change from Baseline</b>',
-        '<b>Figure 5: Pressure vs DTI Time (Regression)</b>',
-        '<b>Table 3: Statistical Analysis</b>',
+        '<b>Best Configuration: Evolved Optimal</b>',
+        '<b>Statistical Analysis</b>',
     ],
     specs=[
         [{"type": "bar"}, {"type": "bar"}],
         [{"type": "bar"}, {"type": "bar"}],
         [{"type": "table"}, {"type": "table"}],
-        [{"type": "scatter"}, {"type": "table"}],
+        [{"type": "table"}, {"type": "table"}],
     ],
     vertical_spacing=0.08,
     horizontal_spacing=0.08,
-    row_heights=[0.22, 0.22, 0.28, 0.28]
+    row_heights=[0.24, 0.24, 0.32, 0.20]
 )
 
 # Figure 1: Pressure bar chart
@@ -209,77 +209,49 @@ fig.add_trace(
     row=3, col=2
 )
 
-# Figure 5: Regression scatter plot
-fig.add_trace(
-    go.Scatter(
-        x=avg_pressure,
-        y=dti_hours,
-        mode='markers',
-        marker=dict(size=12, color=colors),
-        text=short_names,
-        hovertemplate='%{text}<br>Pressure: %{x:.1f} mmHg<br>DTI: %{y:.1f} hours<extra></extra>'
-    ),
-    row=4, col=1
-)
-
-# Add regression line
-x_line = np.linspace(min(avg_pressure) - 5, max(avg_pressure) + 5, 100)
-y_line = slope * x_line + intercept
-fig.add_trace(
-    go.Scatter(
-        x=x_line,
-        y=y_line,
-        mode='lines',
-        line=dict(color='red', dash='dash'),
-        name=f'y = {slope:.3f}x + {intercept:.2f}',
-        hoverinfo='skip'
-    ),
-    row=4, col=1
-)
-
-# Table 3: Statistical Analysis
+# Table 3: Best Configuration Summary
 fig.add_trace(
     go.Table(
         header=dict(
-            values=['<b>Statistical Test</b>', '<b>Value</b>'],
-            fill_color='#2c3e50',
+            values=['<b>Metric</b>', '<b>Value</b>'],
+            fill_color='#2ecc71',
             font=dict(color='white', size=12),
             align='left',
-            height=30
+            height=28
         ),
         cells=dict(
             values=[
-                [
-                    'Linear Regression Equation',
-                    'R-squared (R²)',
-                    'p-value',
-                    'Interpretation',
-                    '',
-                    'Best Configuration',
-                    'Pressure Reduction',
-                    'DTI Improvement',
-                    'STII Reduction',
-                    'Damage Reduction',
-                    'DTI Efficiency',
-                ],
-                [
-                    f'DTI = {slope:.4f} × Pressure + {intercept:.2f}',
-                    f'{r_value**2:.4f}',
-                    f'{p_value:.6f} (p < 0.001)',
-                    f'{r_value**2*100:.1f}% of variance explained',
-                    '',
-                    'Evolved Optimal',
-                    f'{pct_pressure[-1]:+.1f}%',
-                    f'{pct_dti[-1]:+.1f}%',
-                    f'{pct_stii[-1]:+.1f}%',
-                    f'{damage_reduction[-1]:.1f}%',
-                    f'{dti_efficiency[-1]:.0f}%',
-                ],
+                ['Pressure Reduction', 'DTI Improvement', 'STII Reduction', 'Damage Reduction', 'DTI Efficiency'],
+                [f'{pct_pressure[-1]:+.1f}%', f'{pct_dti[-1]:+.1f}%', f'{pct_stii[-1]:+.1f}%', f'{damage_reduction[-1]:.1f}%', f'{dti_efficiency[-1]:.0f}%'],
             ],
-            fill_color=[['white'] * 11, ['white'] * 4 + ['#e8e8e8'] + ['#c8f7c5'] * 6],
+            fill_color=[['#c8f7c5'] * 5, ['#c8f7c5'] * 5],
+            font=dict(size=12),
+            align='left',
+            height=26
+        )
+    ),
+    row=4, col=1
+)
+
+# Table 4: Statistical Analysis
+fig.add_trace(
+    go.Table(
+        header=dict(
+            values=['<b>Test</b>', '<b>Result</b>'],
+            fill_color='#2c3e50',
+            font=dict(color='white', size=12),
+            align='left',
+            height=28
+        ),
+        cells=dict(
+            values=[
+                ['Linear Regression', 'R-squared (R²)', 'p-value', 'Interpretation'],
+                [f'DTI = {slope:.4f} × Pressure + {intercept:.2f}', f'{r_value**2:.4f}', '< 0.001 (significant)', f'{r_value**2*100:.1f}% of variance explained'],
+            ],
+            fill_color=[['#e8e8e8'] * 4, ['white'] * 4],
             font=dict(size=11),
             align='left',
-            height=24
+            height=26
         )
     ),
     row=4, col=2
@@ -293,7 +265,7 @@ fig.update_layout(
         x=0.5,
         font=dict(size=20)
     ),
-    height=1800,
+    height=1600,
     width=1600,
     showlegend=False,
 )
@@ -307,17 +279,6 @@ fig.update_xaxes(tickangle=45, row=1, col=1)
 fig.update_xaxes(tickangle=45, row=1, col=2)
 fig.update_xaxes(tickangle=45, row=2, col=1)
 fig.update_xaxes(tickangle=45, row=2, col=2)
-fig.update_xaxes(title_text="Average Pressure (mmHg)", row=4, col=1)
-fig.update_yaxes(title_text="Time to DTI (hours)", row=4, col=1)
-
-# Add annotation for regression
-fig.add_annotation(
-    x=50, y=4,
-    text=f"R² = {r_value**2:.2f}<br>p < 0.001",
-    showarrow=False,
-    font=dict(size=14, color="red"),
-    row=4, col=1
-)
 
 fig.write_html('results_with_tables.html', include_plotlyjs=True, full_html=True)
 print("Saved: results_with_tables.html")

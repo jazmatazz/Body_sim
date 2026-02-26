@@ -593,26 +593,23 @@ def create_damage_visualization(all_results: dict, total_time_hours: float):
     pct_damage = [((d - baseline_damage) / baseline_damage * 100) if baseline_damage > 0 else 0 for d in reswick_damage]
     dti_efficiency = [(d / baseline_dti * 100) if baseline_dti > 0 else 100 for d in gefen_ttd]
 
-    # Create figure with 4 rows: bar charts, damage curves, STII/perfusion, data table
+    # Create figure with 3 rows: bar charts, damage curves, STII + tables
     fig = make_subplots(
-        rows=4, cols=2,
+        rows=3, cols=2,
         subplot_titles=[
             '<b>Time to Surface Damage</b><br><sup>Reswick-Rogers Model</sup>',
             '<b>Time to Deep Tissue Injury</b><br><sup>Gefen DTI Model</sup>',
             '<b>Damage Accumulation (Surface)</b><br><sup>Reswick-Rogers</sup>',
             '<b>Damage Accumulation (DTI)</b><br><sup>Gefen Model</sup>',
             '<b>STII - Strain-Time Injury Index</b><br><sup>Linder-Ganz & Gefen (2007)</sup>',
-            '<b>Tissue Perfusion Level</b><br><sup>1.0 = perfused, 0.0 = ischemic</sup>',
-            '<b>Data Table: Raw Values</b>',
-            '<b>Data Table: Percent Change from Foam</b>',
+            '<b>Data Table: Results Summary</b>',
         ],
-        vertical_spacing=0.08,
+        vertical_spacing=0.10,
         horizontal_spacing=0.08,
         specs=[[{"type": "bar"}, {"type": "bar"}],
                [{"type": "scatter"}, {"type": "scatter"}],
-               [{"type": "scatter"}, {"type": "scatter"}],
-               [{"type": "table"}, {"type": "table"}]],
-        row_heights=[0.22, 0.22, 0.22, 0.34]
+               [{"type": "scatter"}, {"type": "table"}]],
+        row_heights=[0.25, 0.25, 0.50]
     )
 
     # Panel 1: Time to surface damage (bar chart)
@@ -722,38 +719,12 @@ def create_damage_visualization(all_results: dict, total_time_hours: float):
     fig.add_hline(y=1.0, line_dash="dash", line_color="red",
                   annotation_text="Injury Threshold", row=3, col=1)
 
-    # Panel 6: Perfusion level over time
-    for i, name in enumerate(config_names):
-        perfusion_history = all_results[name]['reswick'].get('perfusion_history', [1.0] * len(time_hours))
-        fig.add_trace(
-            go.Scatter(
-                x=time_hours,
-                y=perfusion_history,
-                mode='lines',
-                name=name,
-                line=dict(
-                    color='#2ecc71' if name == 'Evolved Optimal' else
-                          '#e74c3c' if name == 'Standard Foam' else
-                          '#3498db',
-                    width=3 if name in ['Evolved Optimal', 'Standard Foam'] else 1,
-                ),
-                opacity=1.0 if name in ['Evolved Optimal', 'Standard Foam'] else 0.4,
-                showlegend=False,
-                hovertemplate=f'{name}<br>Time: %{{x:.1f}}h<br>Perfusion: %{{y:.2f}}<extra></extra>'
-            ),
-            row=3, col=2
-        )
-
-    # Add perfusion threshold line
-    fig.add_hline(y=INCOMPLETE_RECOVERY_THRESHOLD, line_dash="dash", line_color="orange",
-                  annotation_text="Recovery Threshold", row=3, col=2)
-
-    # Panel 7: Data Table - Raw Values
+    # Panel 6: Data Table - Combined Results
     fig.add_trace(
         go.Table(
             header=dict(
-                values=['<b>Configuration</b>', '<b>Pressure<br>(mmHg)</b>', '<b>Surface<br>(hours)</b>',
-                        '<b>DTI<br>(hours)</b>', '<b>STII</b>', '<b>Damage</b>'],
+                values=['<b>Configuration</b>', '<b>Pressure<br>(mmHg)</b>', '<b>DTI<br>(hours)</b>',
+                        '<b>STII</b>', '<b>Damage</b>', '<b>DTI<br>Change (%)</b>', '<b>Damage<br>Reduction (%)</b>'],
                 fill_color='#2c3e50',
                 font=dict(color='white', size=11),
                 align='left',
@@ -763,47 +734,19 @@ def create_damage_visualization(all_results: dict, total_time_hours: float):
                 values=[
                     config_names,
                     [f'{p:.1f}' for p in avg_pressures],
-                    [f'{s:.1f}' for s in reswick_ttd],
                     [f'{d:.1f}' for d in gefen_ttd],
                     [f'{s:.2f}' for s in stii_values],
                     [f'{d:.2f}' for d in reswick_damage],
-                ],
-                fill_color=[['#2ecc71' if n == 'Evolved Optimal' else '#e74c3c' if n == 'Standard Foam' else 'white' for n in config_names]] + [['white'] * len(config_names)] * 5,
-                font=dict(size=10),
-                align='left',
-                height=22
-            )
-        ),
-        row=4, col=1
-    )
-
-    # Panel 8: Data Table - Percent Change
-    fig.add_trace(
-        go.Table(
-            header=dict(
-                values=['<b>Configuration</b>', '<b>Pressure<br>Change (%)</b>', '<b>DTI<br>Change (%)</b>',
-                        '<b>STII<br>Change (%)</b>', '<b>Damage<br>Change (%)</b>', '<b>DTI<br>Efficiency (%)</b>'],
-                fill_color='#2c3e50',
-                font=dict(color='white', size=11),
-                align='left',
-                height=28
-            ),
-            cells=dict(
-                values=[
-                    config_names,
-                    ['Baseline' if i == 0 else f'{pct_pressure[i]:+.1f}' for i in range(len(config_names))],
                     ['Baseline' if i == 0 else f'{pct_dti[i]:+.1f}' for i in range(len(config_names))],
-                    ['Baseline' if i == 0 else f'{pct_stii[i]:+.1f}' for i in range(len(config_names))],
-                    ['Baseline' if i == 0 else f'{pct_damage[i]:+.1f}' for i in range(len(config_names))],
-                    [f'{e:.0f}' for e in dti_efficiency],
+                    [f'{(1 - d/baseline_damage)*100:.1f}' for d in reswick_damage],
                 ],
-                fill_color=[['#2ecc71' if n == 'Evolved Optimal' else '#e74c3c' if n == 'Standard Foam' else 'white' for n in config_names]] + [['white'] * len(config_names)] * 5,
+                fill_color=[['#c8f7c5' if n == 'Evolved Optimal' else '#f5b7b1' if n == 'Standard Foam' else 'white' for n in config_names]] + [['white'] * len(config_names)] * 6,
                 font=dict(size=10),
                 align='left',
                 height=22
             )
         ),
-        row=4, col=2
+        row=3, col=2
     )
 
     # Update layout
@@ -814,19 +757,12 @@ def create_damage_visualization(all_results: dict, total_time_hours: float):
             x=0.5,
             font=dict(size=20)
         ),
-        height=1600,
+        height=1400,
         width=1500,
-        showlegend=True,
-        legend=dict(
-            orientation="h",
-            yanchor="bottom",
-            y=-0.05,
-            xanchor="center",
-            x=0.5
-        ),
+        showlegend=False,
     )
 
-    # Update axes for chart rows (tables don't need axis updates)
+    # Update axes for chart rows
     fig.update_xaxes(tickangle=45, row=1, col=1)
     fig.update_xaxes(tickangle=45, row=1, col=2)
     fig.update_yaxes(title_text="Time (hours)", range=[0, total_time_hours * 1.1], row=1, col=1)
@@ -836,11 +772,9 @@ def create_damage_visualization(all_results: dict, total_time_hours: float):
     fig.update_xaxes(title_text="Time (hours)", row=2, col=2)
     fig.update_yaxes(title_text="Cumulative Damage", row=2, col=1)
     fig.update_yaxes(title_text="Cumulative Damage", row=2, col=2)
-    # Row 3: STII and Perfusion
+    # Row 3: STII (col 2 is table, no axis needed)
     fig.update_xaxes(title_text="Time (hours)", row=3, col=1)
-    fig.update_xaxes(title_text="Time (hours)", row=3, col=2)
     fig.update_yaxes(title_text="Cumulative STII", row=3, col=1)
-    fig.update_yaxes(title_text="Perfusion Level", range=[0, 1.1], row=3, col=2)
 
     fig.write_html('time_to_damage.html', include_plotlyjs=True, full_html=True)
     print(f"\nSaved: time_to_damage.html")
