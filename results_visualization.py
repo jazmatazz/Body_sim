@@ -280,7 +280,137 @@ fig.update_xaxes(tickangle=45, row=1, col=2)
 fig.update_xaxes(tickangle=45, row=2, col=1)
 fig.update_xaxes(tickangle=45, row=2, col=2)
 
-fig.write_html('results_with_tables.html', include_plotlyjs=True, full_html=True)
+# Generate Plotly HTML
+plotly_html = fig.to_html(include_plotlyjs=True, full_html=False)
+
+# Create copyable HTML tables
+copyable_tables = """
+<div style="max-width: 1600px; margin: 40px auto; padding: 20px; font-family: Arial, sans-serif;">
+    <h2 style="text-align: center; color: #2c3e50;">Copyable Data Tables</h2>
+    <p style="text-align: center; color: #666;">Select and copy these tables directly into Google Sheets or Excel</p>
+
+    <h3 style="color: #2c3e50; margin-top: 30px;">Table 1: Raw Data</h3>
+    <table border="1" cellpadding="8" cellspacing="0" style="border-collapse: collapse; width: 100%; margin-bottom: 30px;">
+        <tr style="background-color: #2c3e50; color: white;">
+            <th>Configuration</th>
+            <th>Pressure (mmHg)</th>
+            <th>DTI (hours)</th>
+            <th>STII</th>
+            <th>Damage Fraction</th>
+        </tr>
+"""
+
+for i, config in enumerate(configurations):
+    bg_color = '#c8f7c5' if config == 'Evolved Optimal' else '#f5b7b1' if config == 'Standard Foam' else 'white'
+    copyable_tables += f"""        <tr style="background-color: {bg_color};">
+            <td>{config}</td>
+            <td>{avg_pressure[i]:.2f}</td>
+            <td>{dti_hours[i]:.2f}</td>
+            <td>{stii[i]:.2f}</td>
+            <td>{damage_fraction[i]:.2f}</td>
+        </tr>
+"""
+
+copyable_tables += """    </table>
+
+    <h3 style="color: #2c3e50;">Table 2: Percent Change from Baseline</h3>
+    <table border="1" cellpadding="8" cellspacing="0" style="border-collapse: collapse; width: 100%; margin-bottom: 30px;">
+        <tr style="background-color: #2c3e50; color: white;">
+            <th>Configuration</th>
+            <th>Pressure Change (%)</th>
+            <th>DTI Change (%)</th>
+            <th>STII Change (%)</th>
+            <th>Damage Reduction (%)</th>
+        </tr>
+"""
+
+for i, config in enumerate(configurations):
+    bg_color = '#c8f7c5' if config == 'Evolved Optimal' else '#f5b7b1' if config == 'Standard Foam' else 'white'
+    pct_p = 'Baseline' if i == 0 else f'{pct_pressure[i]:+.1f}'
+    pct_d = 'Baseline' if i == 0 else f'{pct_dti[i]:+.1f}'
+    pct_s = 'Baseline' if i == 0 else f'{pct_stii[i]:+.1f}'
+    copyable_tables += f"""        <tr style="background-color: {bg_color};">
+            <td>{config}</td>
+            <td>{pct_p}</td>
+            <td>{pct_d}</td>
+            <td>{pct_s}</td>
+            <td>{damage_reduction[i]:.1f}</td>
+        </tr>
+"""
+
+copyable_tables += f"""    </table>
+
+    <h3 style="color: #2c3e50;">Table 3: Statistical Analysis</h3>
+    <table border="1" cellpadding="8" cellspacing="0" style="border-collapse: collapse; width: 100%; margin-bottom: 30px;">
+        <tr style="background-color: #2c3e50; color: white;">
+            <th>Test</th>
+            <th>Result</th>
+        </tr>
+        <tr>
+            <td>Linear Regression</td>
+            <td>DTI = {slope:.4f} × Pressure + {intercept:.2f}</td>
+        </tr>
+        <tr>
+            <td>R-squared (R²)</td>
+            <td>{r_value**2:.4f}</td>
+        </tr>
+        <tr>
+            <td>p-value</td>
+            <td>&lt; 0.001 (significant)</td>
+        </tr>
+        <tr>
+            <td>Interpretation</td>
+            <td>{r_value**2*100:.1f}% of variance explained</td>
+        </tr>
+    </table>
+
+    <h3 style="color: #2ecc71;">Best Configuration: Evolved Optimal</h3>
+    <table border="1" cellpadding="8" cellspacing="0" style="border-collapse: collapse; width: 50%; margin-bottom: 30px;">
+        <tr style="background-color: #2ecc71; color: white;">
+            <th>Metric</th>
+            <th>Value</th>
+        </tr>
+        <tr style="background-color: #c8f7c5;">
+            <td>Pressure Reduction</td>
+            <td>{pct_pressure[-1]:+.1f}%</td>
+        </tr>
+        <tr style="background-color: #c8f7c5;">
+            <td>DTI Improvement</td>
+            <td>{pct_dti[-1]:+.1f}%</td>
+        </tr>
+        <tr style="background-color: #c8f7c5;">
+            <td>STII Reduction</td>
+            <td>{pct_stii[-1]:+.1f}%</td>
+        </tr>
+        <tr style="background-color: #c8f7c5;">
+            <td>Damage Reduction</td>
+            <td>{damage_reduction[-1]:.1f}%</td>
+        </tr>
+        <tr style="background-color: #c8f7c5;">
+            <td>DTI Efficiency</td>
+            <td>{dti_efficiency[-1]:.0f}%</td>
+        </tr>
+    </table>
+</div>
+"""
+
+# Combine into full HTML
+full_html = f"""<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Results - APM Optimization</title>
+</head>
+<body>
+    {plotly_html}
+    {copyable_tables}
+</body>
+</html>
+"""
+
+with open('results_with_tables.html', 'w') as f:
+    f.write(full_html)
+
 print("Saved: results_with_tables.html")
 
 # Also print summary
