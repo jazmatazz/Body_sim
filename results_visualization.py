@@ -237,10 +237,6 @@ copyable_tables += f"""    </table>
             <td>{r_value**2:.4f}</td>
         </tr>
         <tr>
-            <td>p-value</td>
-            <td>{p_value:.6f}</td>
-        </tr>
-        <tr>
             <td>Interpretation</td>
             <td>{r_value**2*100:.1f}% of variance explained</td>
         </tr>
@@ -305,9 +301,8 @@ print(f"  Time to DTI:      {pct_dti[-1]:+.1f}%")
 print(f"  STII:             {pct_stii[-1]:+.1f}%")
 print(f"  Damage Reduction: {damage_reduction[-1]:.1f}%")
 print(f"  DTI Efficiency:   {dti_efficiency[-1]:.0f}%")
-print(f"\nStatistical Significance:")
+print(f"\nStatistical Analysis:")
 print(f"  R² = {r_value**2:.4f}")
-print(f"  p = {p_value:.6f}")
 
 
 if __name__ == "__main__":
