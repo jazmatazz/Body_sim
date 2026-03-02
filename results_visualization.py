@@ -9,7 +9,6 @@ for science fair presentation.
 import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-from scipy import stats
 
 # Data from simulations
 configurations = [
@@ -69,9 +68,6 @@ damage_reduction = [(1 - d / baseline_damage) * 100 for d in damage_fraction]
 # Colors
 colors = ['#2ecc71' if n == 'Evolved Optimal' else '#e74c3c' if n == 'Standard Foam' else '#3498db'
           for n in configurations]
-
-# Statistical analysis
-slope, intercept, r_value, p_value, std_err = stats.linregress(avg_pressure, dti_hours)
 
 # Create figure
 fig = make_subplots(
@@ -222,26 +218,6 @@ for i, config in enumerate(configurations):
 
 copyable_tables += f"""    </table>
 
-    <h3 style="color: #2c3e50;">Table 3: Statistical Analysis</h3>
-    <table border="1" cellpadding="8" cellspacing="0" style="border-collapse: collapse; width: 100%; margin-bottom: 30px;">
-        <tr style="background-color: #2c3e50; color: white;">
-            <th>Test</th>
-            <th>Result</th>
-        </tr>
-        <tr>
-            <td>Linear Regression</td>
-            <td>DTI = {slope:.4f} × Pressure + {intercept:.2f}</td>
-        </tr>
-        <tr>
-            <td>R-squared (R²)</td>
-            <td>{r_value**2:.4f}</td>
-        </tr>
-        <tr>
-            <td>Interpretation</td>
-            <td>{r_value**2*100:.1f}% of variance explained</td>
-        </tr>
-    </table>
-
     <h3 style="color: #2ecc71;">Best Configuration: Evolved Optimal</h3>
     <table border="1" cellpadding="8" cellspacing="0" style="border-collapse: collapse; width: 50%; margin-bottom: 30px;">
         <tr style="background-color: #2ecc71; color: white;">
@@ -301,8 +277,6 @@ print(f"  Time to DTI:      {pct_dti[-1]:+.1f}%")
 print(f"  STII:             {pct_stii[-1]:+.1f}%")
 print(f"  Damage Reduction: {damage_reduction[-1]:.1f}%")
 print(f"  DTI Efficiency:   {dti_efficiency[-1]:.0f}%")
-print(f"\nStatistical Analysis:")
-print(f"  R² = {r_value**2:.4f}")
 
 
 if __name__ == "__main__":
