@@ -109,8 +109,6 @@ fig.add_trace(
     ),
     row=1, col=1
 )
-fig.add_hline(y=32, line_dash="dash", line_color="red",
-              annotation_text="Capillary Closing (32 mmHg)", row=1, col=1)
 
 # Figure 2: DTI bar chart
 fig.add_trace(
@@ -137,8 +135,6 @@ fig.add_trace(
     ),
     row=2, col=1
 )
-fig.add_hline(y=1.0, line_dash="dash", line_color="red",
-              annotation_text="Injury Threshold", row=2, col=1)
 
 # Figure 4: Damage Reduction Efficiency
 fig.add_trace(
