@@ -8,6 +8,9 @@ Shows how cell size and cycle period affect mattress performance.
 import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
+from fpdf import FPDF
+import tempfile
+import os
 
 # =============================================================================
 # SIMULATION DATA
@@ -197,7 +200,106 @@ fig.add_annotation(x=cycle_periods[-1], y=65.3, text="Standard Foam (65.3)",
 # Save
 # =============================================================================
 fig.write_html('parameter_comparison.html', include_plotlyjs=True, full_html=True)
+
+# Export PDF with charts and tables using fpdf2
+with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp:
+    chart_path = tmp.name
+    fig.write_image(chart_path, width=1200, height=800, scale=2)
+
+pdf = FPDF(orientation='L', unit='mm', format='letter')
+pdf.set_auto_page_break(auto=True, margin=15)
+
+# Page 1: Charts
+pdf.add_page()
+pdf.set_font('Helvetica', 'B', 14)
+pdf.cell(0, 8, 'PARAMETER OPTIMIZATION: Finding the Best Cell Size and Cycle Period', align='C', ln=True)
+pdf.set_font('Helvetica', '', 9)
+pdf.cell(0, 5, 'Testing 5 cell sizes x 4 cycle periods x 13 patterns = 260 configurations', align='C', ln=True)
+pdf.ln(3)
+pdf.image(chart_path, x=20, w=230)
+
+# Page 2: Tables
+pdf.add_page()
+pdf.set_font('Helvetica', 'B', 14)
+pdf.cell(0, 10, 'Table 1: Average Pressure by Cell Size and Cycle Period (mmHg)', ln=True)
+
+# Table 1 header
+pdf.set_font('Helvetica', 'B', 10)
+pdf.set_fill_color(44, 62, 80)
+pdf.set_text_color(255, 255, 255)
+col_widths = [30, 30, 30, 30, 30]
+headers = ['Cell Size', '1 min', '3 min', '5 min', '10 min']
+for i, h in enumerate(headers):
+    pdf.cell(col_widths[i], 8, h, border=1, fill=True, align='C')
+pdf.ln()
+
+# Table 1 data
+pdf.set_font('Helvetica', '', 10)
+pdf.set_text_color(0, 0, 0)
+for cs in cell_sizes:
+    pdf.cell(col_widths[0], 7, f'{cs} cm', border=1, align='C')
+    for cp in cycle_periods:
+        val = cell_size_results[cs][cp]
+        if cs == 5 and cp == 5:
+            pdf.set_fill_color(200, 247, 197)
+            pdf.set_font('Helvetica', 'B', 10)
+            pdf.cell(col_widths[1], 7, f'{val:.1f}', border=1, fill=True, align='C')
+            pdf.set_font('Helvetica', '', 10)
+        else:
+            pdf.cell(col_widths[1], 7, f'{val:.1f}', border=1, align='C')
+    pdf.ln()
+
+pdf.ln(10)
+pdf.set_font('Helvetica', 'B', 14)
+pdf.cell(0, 10, 'Table 2: Time to Deep Tissue Injury by Cell Size and Cycle Period (hours)', ln=True)
+
+# Table 2 header
+pdf.set_font('Helvetica', 'B', 10)
+pdf.set_fill_color(44, 62, 80)
+pdf.set_text_color(255, 255, 255)
+for i, h in enumerate(headers):
+    pdf.cell(col_widths[i], 8, h, border=1, fill=True, align='C')
+pdf.ln()
+
+# Table 2 data
+pdf.set_font('Helvetica', '', 10)
+pdf.set_text_color(0, 0, 0)
+for cs in cell_sizes:
+    pdf.cell(col_widths[0], 7, f'{cs} cm', border=1, align='C')
+    for cp in cycle_periods:
+        val = cell_size_dti[cs][cp]
+        if cs == 5 and cp == 5:
+            pdf.set_fill_color(200, 247, 197)
+            pdf.set_font('Helvetica', 'B', 10)
+            pdf.cell(col_widths[1], 7, f'{val:.1f}', border=1, fill=True, align='C')
+            pdf.set_font('Helvetica', '', 10)
+        else:
+            pdf.cell(col_widths[1], 7, f'{val:.1f}', border=1, align='C')
+    pdf.ln()
+
+# Key Findings
+pdf.ln(10)
+pdf.set_font('Helvetica', 'B', 14)
+pdf.cell(0, 10, 'Key Findings', ln=True)
+pdf.set_font('Helvetica', '', 11)
+findings = [
+    'Cell size too small (3cm): Insufficient support area',
+    'Cell size too large (15cm): Cannot target specific body regions',
+    'Cycle too fast (1min): Not enough time for tissue recovery',
+    'Cycle too slow (10min): Too long between pressure relief',
+]
+for f in findings:
+    pdf.cell(0, 7, f'- {f}', ln=True)
+
+pdf.set_font('Helvetica', 'B', 11)
+pdf.set_text_color(46, 204, 113)
+pdf.cell(0, 10, 'OPTIMAL: 5cm cells with 5-minute cycle period', ln=True)
+
+pdf.output('parameter_comparison.pdf')
+os.unlink(chart_path)
+
 print("Saved: parameter_comparison.html")
+print("Saved: parameter_comparison.pdf")
 
 # Print summary
 print("\n" + "=" * 60)
