@@ -75,26 +75,19 @@ slope, intercept, r_value, p_value, std_err = stats.linregress(avg_pressure, dti
 
 # Create figure
 fig = make_subplots(
-    rows=4, cols=2,
+    rows=2, cols=2,
     subplot_titles=[
         '<b>Figure 1: Average Pressure by Configuration</b>',
         '<b>Figure 2: Time to Deep Tissue Injury</b>',
         '<b>Figure 3: STII (Strain-Time Injury Index)</b>',
         '<b>Figure 4: Damage Reduction Efficiency</b>',
-        '<b>Table 1: Raw Data</b>',
-        '<b>Table 2: Percent Change from Baseline</b>',
-        '<b>Best Configuration: Evolved Optimal</b>',
-        '<b>Statistical Analysis</b>',
     ],
     specs=[
         [{"type": "bar"}, {"type": "bar"}],
         [{"type": "bar"}, {"type": "bar"}],
-        [{"type": "table"}, {"type": "table"}],
-        [{"type": "table"}, {"type": "table"}],
     ],
-    vertical_spacing=0.08,
+    vertical_spacing=0.12,
     horizontal_spacing=0.08,
-    row_heights=[0.24, 0.24, 0.32, 0.20]
 )
 
 # Figure 1: Pressure bar chart
@@ -149,110 +142,6 @@ fig.add_trace(
     row=2, col=2
 )
 
-# Table 1: Raw Data
-fig.add_trace(
-    go.Table(
-        header=dict(
-            values=['<b>Configuration</b>', '<b>Pressure<br>(mmHg)</b>', '<b>DTI<br>(hours)</b>',
-                    '<b>STII</b>', '<b>Damage<br>Fraction</b>'],
-            fill_color='#2c3e50',
-            font=dict(color='white', size=11),
-            align='left',
-            height=26
-        ),
-        cells=dict(
-            values=[
-                configurations,
-                [f'{p:.2f}' for p in avg_pressure],
-                [f'{d:.2f}' for d in dti_hours],
-                [f'{s:.2f}' for s in stii],
-                [f'{d:.2f}' for d in damage_fraction],
-            ],
-            fill_color=[['#c8f7c5' if n == 'Evolved Optimal' else '#f5b7b1' if n == 'Standard Foam' else 'white' for n in configurations]] * 5,
-            font=dict(size=10),
-            align='left',
-            height=20
-        )
-    ),
-    row=3, col=1
-)
-
-# Table 2: Percent Change
-fig.add_trace(
-    go.Table(
-        header=dict(
-            values=['<b>Configuration</b>', '<b>Pressure<br>Change (%)</b>', '<b>DTI<br>Change (%)</b>',
-                    '<b>STII<br>Change (%)</b>', '<b>Damage<br>Reduction (%)</b>'],
-            fill_color='#2c3e50',
-            font=dict(color='white', size=11),
-            align='left',
-            height=26
-        ),
-        cells=dict(
-            values=[
-                configurations,
-                ['Baseline' if i == 0 else f'{pct_pressure[i]:+.1f}' for i in range(len(configurations))],
-                ['Baseline' if i == 0 else f'{pct_dti[i]:+.1f}' for i in range(len(configurations))],
-                ['Baseline' if i == 0 else f'{pct_stii[i]:+.1f}' for i in range(len(configurations))],
-                [f'{d:.1f}' for d in damage_reduction],
-            ],
-            fill_color=[['#c8f7c5' if n == 'Evolved Optimal' else '#f5b7b1' if n == 'Standard Foam' else 'white' for n in configurations]] * 5,
-            font=dict(size=10),
-            align='left',
-            height=20
-        )
-    ),
-    row=3, col=2
-)
-
-# Table 3: Best Configuration Summary
-fig.add_trace(
-    go.Table(
-        header=dict(
-            values=['<b>Metric</b>', '<b>Value</b>'],
-            fill_color='#2ecc71',
-            font=dict(color='white', size=12),
-            align='left',
-            height=28
-        ),
-        cells=dict(
-            values=[
-                ['Pressure Reduction', 'DTI Improvement', 'STII Reduction', 'Damage Reduction', 'DTI Efficiency'],
-                [f'{pct_pressure[-1]:+.1f}%', f'{pct_dti[-1]:+.1f}%', f'{pct_stii[-1]:+.1f}%', f'{damage_reduction[-1]:.1f}%', f'{dti_efficiency[-1]:.0f}%'],
-            ],
-            fill_color=[['#c8f7c5'] * 5, ['#c8f7c5'] * 5],
-            font=dict(size=12),
-            align='left',
-            height=26
-        )
-    ),
-    row=4, col=1
-)
-
-# Table 4: Statistical Analysis
-fig.add_trace(
-    go.Table(
-        header=dict(
-            values=['<b>Test</b>', '<b>Result</b>'],
-            fill_color='#2c3e50',
-            font=dict(color='white', size=12),
-            align='left',
-            height=28
-        ),
-        cells=dict(
-            values=[
-                ['Linear Regression', 'R-squared (R²)', 'p-value', 'Interpretation'],
-                [f'DTI = {slope:.4f} × Pressure + {intercept:.2f}', f'{r_value**2:.4f}', '< 0.001 (significant)', f'{r_value**2*100:.1f}% of variance explained'],
-            ],
-            fill_color=[['#e8e8e8'] * 4, ['white'] * 4],
-            font=dict(size=11),
-            align='left',
-            height=26
-        )
-    ),
-    row=4, col=2
-)
-
 # Update layout
 fig.update_layout(
     title=dict(
@@ -261,8 +150,8 @@ fig.update_layout(
         x=0.5,
         font=dict(size=20)
     ),
-    height=1600,
-    width=1600,
+    height=800,
+    width=1400,
     showlegend=False,
 )
 
@@ -279,12 +168,9 @@ fig.update_xaxes(tickangle=45, row=2, col=2)
 # Generate Plotly HTML
 plotly_html = fig.to_html(include_plotlyjs=True, full_html=False)
 
-# Create copyable HTML tables
+# Create HTML tables
 copyable_tables = """
 <div style="max-width: 1600px; margin: 40px auto; padding: 20px; font-family: Arial, sans-serif;">
-    <h2 style="text-align: center; color: #2c3e50;">Copyable Data Tables</h2>
-    <p style="text-align: center; color: #666;">Select and copy these tables directly into Google Sheets or Excel</p>
-
     <h3 style="color: #2c3e50; margin-top: 30px;">Table 1: Raw Data</h3>
     <table border="1" cellpadding="8" cellspacing="0" style="border-collapse: collapse; width: 100%; margin-bottom: 30px;">
         <tr style="background-color: #2c3e50; color: white;">
@@ -352,7 +238,7 @@ copyable_tables += f"""    </table>
         </tr>
         <tr>
             <td>p-value</td>
-            <td>&lt; 0.001 (significant)</td>
+            <td>{p_value:.6f}</td>
         </tr>
         <tr>
             <td>Interpretation</td>
