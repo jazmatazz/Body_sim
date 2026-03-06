@@ -662,7 +662,7 @@ class GeneticOptimizer:
         self.history: List[dict] = []
 
         # Body model (matching all_mattress_configs.py: 40x18 grid)
-        self.model = SMPLBodyPressureModel(75, 30)
+        self.model = SMPLBodyPressureModel(80, 30)
         self.body_pressure, self.shear_map = self.model.calculate_pressure_map(40, 18)
 
     def initialize_population(self):

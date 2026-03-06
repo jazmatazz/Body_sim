@@ -36,7 +36,7 @@ BASE_CONFIG = {
     'cell_size': 5,
     'simulation_time': 3600,  # 1 hour
     'timestep': 30,
-    'waist_hinge_angle': 15,  # Slight incline
+    'waist_hinge_angle': 30,  # Standard quadriplegic head-of-bed elevation
     'quadriplegic_mode': True,
 }
 

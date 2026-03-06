@@ -480,7 +480,7 @@ def create_time_to_damage_analysis():
     print("=" * 60)
 
     # Generate body pressure map
-    model = SMPLBodyPressureModel(75, 30)
+    model = SMPLBodyPressureModel(80, 30)
     body_pressure, body_shear = model.calculate_pressure_map(40, 18)
 
     print(f"\nBase body pressure: Peak={body_pressure.max():.1f} mmHg")

@@ -81,7 +81,7 @@ def get_simulation_values():
     """Extract values used in our simulation."""
 
     # Run simulation to get pressure outputs
-    model = SMPLBodyPressureModel(75, 30)
+    model = SMPLBodyPressureModel(80, 30)
     pressure_map, shear_map = model.calculate_pressure_map(64, 32)
 
     # Calculate regional pressures
