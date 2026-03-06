@@ -44,7 +44,7 @@ INCLINE_ANGLE = 30    # degrees
 HINGE_POSITION = 0.45  # 45% from head (waist/hip area)
 
 # Body parameters
-BODY_LENGTH = 175  # cm
+BODY_LENGTH = 180  # cm (consistent with main simulation)
 
 # Cache for the body model (same model used in simulation)
 _body_model_cache = None
