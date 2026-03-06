@@ -2090,7 +2090,6 @@ def create_optimization_visualization(results: Dict,
     fig.update_xaxes(title_text='Cycle Period', row=2, col=2)
     fig.update_xaxes(title_text='Column', row=3, col=1)
     fig.update_xaxes(title_text='Time (minutes)', row=3, col=2)
-
     fig.update_yaxes(title_text='Risk Score', row=1, col=1)
     fig.update_yaxes(title_text='Risk Score', row=1, col=2)
     fig.update_yaxes(title_text='Risk Score', row=2, col=1)
