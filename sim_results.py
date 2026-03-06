@@ -40,6 +40,11 @@ FOAM_REDISTRIBUTION = 0.15      # Foam reduces peak pressure by ~85%
 APM_INFLATED_REDISTRIBUTION = 0.15  # Inflated APM cells similar to foam
 APM_DEFLATED_RELIEF = 0.85      # Deflated cells provide additional 85% relief
 
+# 30-degree lateral wedge pressure factor
+# At 30° tilt, sacral pressure reduces to ~50% of supine (Defloor 2000, Colin 1996)
+# This avoids full trochanter loading while still providing sacral relief
+WEDGE_30_DEG_SACRAL_FACTOR = 0.50
+
 
 # =============================================================================
 # STII - STRAIN-TIME INJURY INDEX (Linder-Ganz/Gefen 2007)
@@ -445,7 +450,7 @@ def create_time_to_damage_analysis():
 
     # All configurations
     configs = {
-        'Standard Foam': {'type': 'foam'},
+        'Manual Repositioning (2h)': {'type': 'foam_manual'},  # Foam with manual repositioning
     }
 
     for name, pattern in MOVEMENT_PATTERNS.items():
@@ -475,7 +480,7 @@ def create_time_to_damage_analysis():
     for config_name, config in configs.items():
         print(f"\n  Processing: {config_name}")
 
-        if config['type'] != 'foam':
+        if config['type'] == 'apm':
             pattern = config['pattern']
             mattress = MultiDynamicAirMattress(cell_size_cm=5, movement_pattern=pattern)
             realistic_state = RealisticMattressState(mattress.rows, mattress.cols)
@@ -487,8 +492,21 @@ def create_time_to_damage_analysis():
         pressure_history = []
 
         for time_sec in time_points_sec:
-            if config['type'] == 'foam':
-                # Foam mattress provides ~85% pressure redistribution
+            if config['type'] == 'foam_manual':
+                # Foam mattress with manual repositioning every 2 hours
+                # Pattern: supine (0-2h) -> left 30° wedge (2-4h) -> supine (4-6h) -> right 30° wedge (6-8h)
+                time_hours = time_sec / 3600
+                cycle_position = int(time_hours / 2) % 4  # 0=supine, 1=left, 2=supine, 3=right
+
+                if cycle_position in [0, 2]:  # Supine (flat on back)
+                    # Sacrum under full pressure
+                    effective_pressure = body_pressure * FOAM_REDISTRIBUTION
+                else:  # 30° lateral wedge (left or right side)
+                    # Sacrum partially relieved at 30° tilt
+                    # Avoids full trochanter loading while providing sacral relief
+                    effective_pressure = body_pressure * FOAM_REDISTRIBUTION * WEDGE_30_DEG_SACRAL_FACTOR
+            elif config['type'] == 'foam':
+                # Foam mattress without repositioning (static)
                 effective_pressure = body_pressure * FOAM_REDISTRIBUTION
             else:
                 mattress.update(time_sec)
@@ -569,7 +587,7 @@ def create_damage_visualization(all_results: dict, total_time_hours: float):
     stii_values = [all_results[name]['reswick'].get('cumulative_stii', 0) for name in config_names]
 
     # Colors
-    colors = ['#2ecc71' if name == 'Evolved Optimal' else '#e74c3c' if name == 'Standard Foam' else '#3498db' for name in config_names]
+    colors = ['#2ecc71' if name == 'Evolved Optimal' else '#e74c3c' if 'Manual Repositioning' in name else '#3498db' for name in config_names]
 
     # Calculate percent changes
     baseline_pressure = avg_pressures[0]
@@ -700,7 +718,7 @@ def create_damage_visualization(all_results: dict, total_time_hours: float):
 
     for i, name in enumerate(config_names):
         r = all_results[name]
-        row_class = 'evolved' if name == 'Evolved Optimal' else 'baseline' if name == 'Standard Foam' else ''
+        row_class = 'evolved' if name == 'Evolved Optimal' else 'baseline' if 'Manual Repositioning' in name else ''
         r_ttd = r['reswick']['time_to_damage_hours']
         g_ttd = r['gefen']['time_to_damage_hours']
         r_str = f"{r_ttd:.1f}" if r_ttd else ">8.0"
@@ -710,7 +728,7 @@ def create_damage_visualization(all_results: dict, total_time_hours: float):
 
     html += """    </table>
 
-    <h3>Table 2: Percent Change from Baseline (Standard Foam)</h3>
+    <h3>Table 2: Percent Change from Baseline (Manual Repositioning)</h3>
     <table>
         <tr>
             <th>Configuration</th>
@@ -722,7 +740,7 @@ def create_damage_visualization(all_results: dict, total_time_hours: float):
 """
 
     for i, name in enumerate(config_names):
-        row_class = 'evolved' if name == 'Evolved Optimal' else 'baseline' if name == 'Standard Foam' else ''
+        row_class = 'evolved' if name == 'Evolved Optimal' else 'baseline' if 'Manual Repositioning' in name else ''
         pct_p = 'Baseline' if i == 0 else f'{pct_pressure[i]:+.1f}'
         pct_d = 'Baseline' if i == 0 else f'{pct_dti[i]:+.1f}'
         pct_s = 'Baseline' if i == 0 else f'{pct_stii[i]:+.1f}'
@@ -785,7 +803,7 @@ def create_damage_visualization(all_results: dict, total_time_hours: float):
         if name == 'Evolved Optimal':
             pdf.set_fill_color(200, 247, 197)
             fill = True
-        elif name == 'Standard Foam':
+        elif 'Manual Repositioning' in name:
             pdf.set_fill_color(245, 183, 177)
             fill = True
         else:
@@ -823,7 +841,7 @@ def create_damage_visualization(all_results: dict, total_time_hours: float):
         if name == 'Evolved Optimal':
             pdf.set_fill_color(200, 247, 197)
             fill = True
-        elif name == 'Standard Foam':
+        elif 'Manual Repositioning' in name:
             pdf.set_fill_color(245, 183, 177)
             fill = True
         else:
@@ -882,8 +900,8 @@ def create_damage_visualization(all_results: dict, total_time_hours: float):
     print(f"{'':28} {'(mmHg)':>9} {'(hours)':>10} {'(hours)':>10} {'':>8} {'Fraction':>10} {'':>10}")
     print("-" * 120)
 
-    foam_reswick = all_results['Standard Foam']['reswick']['time_to_damage_hours']
-    foam_gefen = all_results['Standard Foam']['gefen']['time_to_damage_hours']
+    foam_reswick = all_results['Manual Repositioning (2h)']['reswick']['time_to_damage_hours']
+    foam_gefen = all_results['Manual Repositioning (2h)']['gefen']['time_to_damage_hours']
 
     for name in config_names:
         r = all_results[name]
