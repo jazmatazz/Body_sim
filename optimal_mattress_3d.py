@@ -3,22 +3,17 @@
 3D Visualization of Optimal Mattress Configuration
 ===================================================
 Visualizes the Genetically Evolved Optimal air mattress with:
-- 15cm cells (13 x 6 grid)
+- 5cm cells (40 x 18 grid) - optimal cell size from parameter optimization
 - Evolved pattern - optimized via genetic algorithm over 25 generations
 - 5-minute cycle period
 - SMPL body model on inclined surface
 - 30-degree head-of-bed incline
 
-Evolved Optimal achieved 98% damage reduction vs foam:
-- Max damage: 94 (vs 3011 for foam)
-- At-risk cells: 0 (vs 37 for foam)
-- Avg shear: 8.3 (vs 33.8 for foam)
-
 Key evolved strategies:
 - Lower max inflation (0.6-0.7) prevents pressure spikes
 - Asymmetric heel patterns (different left/right treatment)
-- Square waves in scapulae for abrupt relief transitions
 - Variable wave types per region (sine, square, triangle, sawtooth)
+- Region-specific cycle speeds for targeted pressure relief
 """
 
 import numpy as np
@@ -33,11 +28,11 @@ EVOLVED_PATTERN = EvolvedOptimalPattern()
 # Mattress parameters (optimal configuration)
 MATTRESS_LENGTH = 200  # cm
 MATTRESS_WIDTH = 90    # cm
-CELL_SIZE = 15         # cm (optimal)
+CELL_SIZE = 5          # cm (optimal based on parameter optimization)
 CYCLE_PERIOD = 300     # seconds (5 minutes)
 
-N_ROWS = int(MATTRESS_LENGTH / CELL_SIZE)  # 13
-N_COLS = int(MATTRESS_WIDTH / CELL_SIZE)   # 6
+N_ROWS = int(MATTRESS_LENGTH / CELL_SIZE)  # 40
+N_COLS = int(MATTRESS_WIDTH / CELL_SIZE)   # 18
 
 # Cell dimensions
 CELL_HEIGHT_MAX = 12  # cm when fully inflated

@@ -519,9 +519,8 @@ def create_time_to_damage_analysis():
 
         if config['type'] == 'apm':
             pattern = config['pattern']
-            # Evolved pattern was optimized for 15cm cells; others use 5cm
-            cell_size = 15 if config_name == 'Evolved Optimal' else 5
-            mattress = MultiDynamicAirMattress(cell_size_cm=cell_size, movement_pattern=pattern)
+            # All patterns use 5cm cells (Evolved pattern was optimized at 5cm)
+            mattress = MultiDynamicAirMattress(cell_size_cm=5, movement_pattern=pattern)
             realistic_state = RealisticMattressState(mattress.rows, mattress.cols)
 
             scale_y = mattress.rows / body_pressure.shape[0]
