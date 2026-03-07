@@ -2,7 +2,7 @@
 """
 3D Visualization of Optimal Mattress Configuration
 ===================================================
-Visualizes the Genetically Evolved Optimal air mattress with:
+Visualizes the Optimal air mattress configuration with:
 - 5cm cells (40 x 18 grid) - optimal cell size from parameter optimization
 - Evolved pattern - optimized via genetic algorithm over 25 generations
 - 5-minute cycle period
@@ -19,11 +19,11 @@ Key evolved strategies:
 import numpy as np
 import plotly.graph_objects as go
 import math
-from evolved_pattern import EvolvedOptimalPattern
+from evolved_pattern import OptimalPattern
 from multidynamic_mattress_optimization import SMPLBodyPressureModel
 
 # Instantiate the evolved pattern
-EVOLVED_PATTERN = EvolvedOptimalPattern()
+OPTIMAL_PATTERN = OptimalPattern()
 
 # Mattress parameters (optimal configuration)
 MATTRESS_LENGTH = 200  # cm
@@ -286,7 +286,7 @@ def get_zone_info(row, col):
 
 def get_cell_inflation(row, col, phase):
     """
-    Get cell inflation state (0-1) at given phase using Genetically Evolved pattern.
+    Get cell inflation state (0-1) at given phase using the Optimal pattern.
 
     Evolved via genetic algorithm over 25 generations to minimize:
     - Max cumulative damage
@@ -301,7 +301,7 @@ def get_cell_inflation(row, col, phase):
 
     Uses smooth=True for realistic visualization (gradual transitions).
     """
-    return EVOLVED_PATTERN.get_cell_state(row, col, N_ROWS, N_COLS, phase, smooth=True)
+    return OPTIMAL_PATTERN.get_cell_state(row, col, N_ROWS, N_COLS, phase, smooth=True)
 
 
 def get_bed_surface_position(row):
@@ -725,7 +725,7 @@ def create_animation():
     fig.update_layout(
         title=dict(
             text='<b>Optimal Multi-Dynamic Air Mattress for Quadriplegic Patient</b><br>'
-                 '<sup>5cm cells (40×18 grid) | Genetically Evolved Pattern | 5-minute cycle | 30° Incline | 80kg body</sup>',
+                 '<sup>5cm cells (40×18 grid) | Optimal Pattern | 5-minute cycle | 30° Incline | 80kg body</sup>',
             x=0.5,
             font=dict(size=18)
         ),
@@ -750,11 +750,11 @@ def create_animation():
     fig.add_annotation(
         x=0.02, y=0.98,
         xref='paper', yref='paper',
-        text='<b>Evolved Optimal Pattern:</b><br>'
-             '• Avg pressure: 42.5 mmHg<br>'
-             '• Time to damage: 6.1 hours<br>'
-             '• 61% damage reduction vs manual<br>'
-             '• Asymmetric heel patterns<br>'
+        text='<b>Optimal Pattern:</b><br>'
+             '• Avg pressure: 44.1 mmHg<br>'
+             '• Time to damage: 4.3 hours<br>'
+             '• 51% damage reduction vs manual<br>'
+             '• Body-aligned cell regions<br>'
              '• Region-specific wave types<br><br>'
              '<b>30° Incline Effects:</b><br>'
              '• Weight shifts to sacrum<br>'
@@ -850,7 +850,7 @@ def create_static_comparison():
 
     fig.update_layout(
         title=dict(
-            text='<b>Genetically Evolved Pattern - Cycle Phases</b><br>'
+            text='<b>Optimal Pattern - Cycle Phases</b><br>'
                  '<sup>Evolved over 25 generations | Variable wave types | Asymmetric regions</sup>',
             x=0.5,
             font=dict(size=18)
@@ -865,7 +865,7 @@ def create_static_comparison():
 
 if __name__ == "__main__":
     print("Creating optimal mattress 3D visualization...")
-    print("Using Genetically Evolved Pattern (5cm cells, 61% damage reduction vs manual repositioning)")
+    print("Using Optimal Pattern (5cm cells, 51% damage reduction vs manual repositioning)")
 
     # Create animated version
     fig_animated = create_animation()

@@ -20,7 +20,7 @@ from multidynamic_mattress_optimization import (
     CAPILLARY_CLOSING_PRESSURE
 )
 from all_mattress_pti import RealisticMattressState
-from time_to_damage import PerfusionState, INCOMPLETE_RECOVERY_THRESHOLD
+from sim_results import PerfusionState, INCOMPLETE_RECOVERY_THRESHOLD
 
 # PTI calculation constants (matching all_mattress_configs.py exactly)
 PRESSURE_THRESHOLD = 32  # mmHg - capillary closing pressure
@@ -53,6 +53,23 @@ SHEAR_AMPLIFICATION = 1.5     # Bennett 1979
 MOISTURE_FACTOR = 1.3         # Beeckman 2014 (level 2: very moist)
 
 # =============================================================================
+# BODY-TO-MATTRESS COORDINATE CONVERSION
+# =============================================================================
+# Body (180cm) sits on mattress (200cm) starting 10cm from head
+MATTRESS_LENGTH = 200.0  # cm
+BODY_LENGTH = 180.0      # cm
+BODY_START = 10.0        # cm from head of mattress
+
+def body_to_mattress_coord(body_frac: float) -> float:
+    """Convert body-normalized coordinate (0-1) to mattress-normalized coordinate (0-1)."""
+    mattress_pos_cm = body_frac * BODY_LENGTH + BODY_START
+    return mattress_pos_cm / MATTRESS_LENGTH
+
+def body_bounds_to_mattress(body_start: float, body_end: float) -> tuple:
+    """Convert body region bounds to mattress coordinates."""
+    return (body_to_mattress_coord(body_start), body_to_mattress_coord(body_end))
+
+# =============================================================================
 # REALISTIC PRESSURE REDISTRIBUTION FACTORS
 # =============================================================================
 # Based on clinical pressure mapping studies (Defloor 2000, Reenalda 2009)
@@ -65,35 +82,36 @@ AMC_SHEAR_FACTOR = 0.15         # Shear also reduced by mattress
 # =============================================================================
 # BODY REGIONS FOR WHOLE-BODY OPTIMIZATION
 # =============================================================================
-# Each region defined by (row_start, row_end) as fraction of body length
+# Bounds are in MATTRESS coordinates (converted from body coordinates)
+# Body (180cm) sits on mattress (200cm) starting at 10cm from head
 # Risk weight based on clinical pressure ulcer incidence (NPUAP data)
 BODY_REGIONS = {
     'head_occiput': {
-        'bounds': (0.00, 0.08),
+        'bounds': body_bounds_to_mattress(0.00, 0.08),  # Body 0-14.4cm -> Mattress 10-24.4cm
         'risk_weight': 0.5,   # Lower risk
     },
     'scapulae': {
-        'bounds': (0.10, 0.25),
+        'bounds': body_bounds_to_mattress(0.10, 0.25),  # Body 18-45cm -> Mattress 28-55cm
         'risk_weight': 1.0,   # Moderate risk
     },
     'thoracic': {
-        'bounds': (0.25, 0.40),
+        'bounds': body_bounds_to_mattress(0.25, 0.40),  # Body 45-72cm -> Mattress 55-82cm
         'risk_weight': 0.5,   # Lower risk
     },
     'sacrum': {
-        'bounds': (0.40, 0.55),
+        'bounds': body_bounds_to_mattress(0.40, 0.55),  # Body 72-99cm -> Mattress 82-109cm
         'risk_weight': 3.0,   # HIGHEST risk - 33% of all pressure ulcers
     },
     'thighs': {
-        'bounds': (0.55, 0.75),
+        'bounds': body_bounds_to_mattress(0.55, 0.75),  # Body 99-135cm -> Mattress 109-145cm
         'risk_weight': 0.5,   # Lower risk
     },
     'calves': {
-        'bounds': (0.75, 0.92),
+        'bounds': body_bounds_to_mattress(0.75, 0.92),  # Body 135-165.6cm -> Mattress 145-175.6cm
         'risk_weight': 0.8,   # Moderate risk
     },
     'heels': {
-        'bounds': (0.92, 1.00),
+        'bounds': body_bounds_to_mattress(0.92, 1.00),  # Body 165.6-180cm -> Mattress 175.6-190cm
         'risk_weight': 2.0,   # HIGH risk - 30% of all pressure ulcers
     },
 }
@@ -287,15 +305,18 @@ class PatternGenome:
     generation: int = 0
 
     # Body region definitions (row_start, row_end, col_start, col_end)
+    # Row bounds are in MATTRESS coordinates (body aligned)
+    # Body (180cm) sits on mattress (200cm) starting at 10cm from head
+    # Column bounds remain unchanged (lateral position on mattress)
     REGION_BOUNDS = {
-        'head': (0.0, 0.08, 0.3, 0.7),
-        'scapulae': (0.10, 0.25, 0.2, 0.8),
-        'thoracic': (0.25, 0.40, 0.25, 0.75),
-        'sacrum': (0.40, 0.55, 0.35, 0.65),
-        'thighs': (0.55, 0.75, 0.2, 0.8),
-        'calves': (0.75, 0.92, 0.25, 0.75),
-        'left_heel': (0.92, 1.0, 0.30, 0.42),
-        'right_heel': (0.92, 1.0, 0.58, 0.70),
+        'head': (body_to_mattress_coord(0.0), body_to_mattress_coord(0.08), 0.3, 0.7),
+        'scapulae': (body_to_mattress_coord(0.10), body_to_mattress_coord(0.25), 0.2, 0.8),
+        'thoracic': (body_to_mattress_coord(0.25), body_to_mattress_coord(0.40), 0.25, 0.75),
+        'sacrum': (body_to_mattress_coord(0.40), body_to_mattress_coord(0.55), 0.35, 0.65),
+        'thighs': (body_to_mattress_coord(0.55), body_to_mattress_coord(0.75), 0.2, 0.8),
+        'calves': (body_to_mattress_coord(0.75), body_to_mattress_coord(0.92), 0.25, 0.75),
+        'left_heel': (body_to_mattress_coord(0.92), body_to_mattress_coord(1.0), 0.30, 0.42),
+        'right_heel': (body_to_mattress_coord(0.92), body_to_mattress_coord(1.0), 0.58, 0.70),
         'default': (0.0, 1.0, 0.0, 1.0),  # Fallback for uncovered areas
     }
 
@@ -592,40 +613,56 @@ def evaluate_fitness(genome: PatternGenome, body_pressure: np.ndarray,
     min_perfusion = min(perfusion_history) if perfusion_history else 1.0
     avg_perfusion = np.mean(perfusion_history) if perfusion_history else 1.0
 
-    # === FITNESS FUNCTION: WHOLE-BODY DTI OPTIMIZATION ===
-    # Primary goal: minimize weighted damage across ALL body regions
-    # Weight by clinical risk (sacrum 3x, heels 2x, others 0.5-1x)
+    # === FITNESS FUNCTION: SACRUM-FOCUSED OPTIMIZATION ===
+    # Primary goal: minimize average sacrum pressure (same metric as sim_results.py)
+    # sim_results.py measures peak sacrum pressure in 3x3 window over time
+
+    # Calculate average sacrum pressure the same way as sim_results
+    h, w = pressure_history[0].shape
+    sacrum_row_idx = int(0.4 * h)
+    sacrum_col_idx = int(0.5 * w)
+
+    sacrum_pressures = []
+    for p in pressure_history:
+        r_start = max(0, sacrum_row_idx - 1)
+        r_end = min(h, sacrum_row_idx + 2)
+        c_start = max(0, sacrum_col_idx - 1)
+        c_end = min(w, sacrum_col_idx + 2)
+        sacrum_peak = p[r_start:r_end, c_start:c_end].max()
+        sacrum_pressures.append(sacrum_peak)
+
+    avg_sacrum_pressure_actual = np.mean(sacrum_pressures)
 
     simulation_hours = simulation_minutes / 60
 
-    if worst_time_to_dti is not None:
-        # DTI occurred somewhere - fitness is time until first DTI
-        fitness = worst_time_to_dti * 10.0
-    else:
-        # No DTI in any region - excellent!
-        if weighted_damage > 0:
-            # Bonus based on how far below damage threshold
-            fitness = simulation_hours * 10.0 + (1.0 / weighted_damage) * 5.0
-        else:
-            # No damage at all - maximum fitness
-            fitness = simulation_hours * 10.0 + 100.0
+    # PRIMARY: Minimize sacrum pressure (inverted - higher fitness = lower pressure)
+    # Zone-Based achieves ~48 mmHg, we want to beat that
+    # Fitness = 200 - 2*pressure gives ~100 for 50mmHg, ~160 for 20mmHg
+    fitness = 200.0 - 2.0 * avg_sacrum_pressure_actual
 
-    # Penalties for whole-body pressure (not just sacrum)
-    fitness -= avg_whole_body_pressure * 0.02  # Whole body pressure penalty
-    fitness -= at_risk_cells * 0.001           # At-risk cells penalty
+    # SECONDARY: Bonus for no DTI
+    if worst_time_to_dti is None:
+        fitness += 20.0  # No DTI anywhere
 
-    # Bonus for reducing high-risk regions (sacrum, heels)
-    sacrum_damage = region_results.get('sacrum', {}).get('cumulative_damage', 0)
+    # SECONDARY: Bonus for low weighted damage
+    if weighted_damage < 0.1:
+        fitness += 10.0
+    elif weighted_damage < 0.5:
+        fitness += 5.0
+
+    # Penalty for very high pressures
+    if avg_sacrum_pressure_actual > 60:
+        fitness -= (avg_sacrum_pressure_actual - 60) * 0.5
+
+    # Bonus for low heel pressure
     heels_damage = region_results.get('heels', {}).get('cumulative_damage', 0)
-    if sacrum_damage < 0.5:
-        fitness += 5.0  # Bonus for low sacrum damage
-    if heels_damage < 0.5:
-        fitness += 3.0  # Bonus for low heel damage
+    if heels_damage < 0.3:
+        fitness += 5.0
 
     metrics = {
         'worst_time_to_dti': worst_time_to_dti,  # hours (None if no DTI in any region)
         'weighted_damage': weighted_damage,
-        'avg_sacrum_pressure': avg_sacrum_pressure,
+        'avg_sacrum_pressure': avg_sacrum_pressure_actual,  # Same metric as sim_results
         'avg_whole_body_pressure': avg_whole_body_pressure,
         'max_pti': max_pti,  # mmHg·hours
         'at_risk_cells': at_risk_cells,
@@ -961,11 +998,11 @@ Generation: {generation}
 import numpy as np
 
 
-class EvolvedOptimalPattern:
-    """Evolved optimal pressure redistribution pattern."""
+class OptimalPattern:
+    """Optimal pressure redistribution pattern (genetically evolved)."""
 
-    name = "Evolved Optimal"
-    pattern_type = "evolved"
+    name = "Optimal"
+    pattern_type = "optimal"
 
     # Region parameters (evolved)
     REGIONS = {{
@@ -993,6 +1030,10 @@ class EvolvedOptimalPattern:
             rows, cols: Grid dimensions
             phase: Current cycle phase (0-1)
             smooth: If True, use smooth transitions for visualization
+
+        Note: Region bounds use body-aligned mattress coordinates.
+        Body (180cm) sits on mattress (200cm) starting at 10cm from head.
+        Bounds are in mattress-normalized coordinates (0-1 across mattress).
         """
         row_pos = row / rows
         col_pos = col / cols

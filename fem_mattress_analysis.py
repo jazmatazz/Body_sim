@@ -26,7 +26,7 @@ from fem_tissue_model import (
 from multidynamic_mattress_optimization import (
     SMPLBodyPressureModel, MultiDynamicAirMattress, MOVEMENT_PATTERNS
 )
-from evolved_pattern import EvolvedOptimalPattern
+from evolved_pattern import OptimalPattern
 from all_mattress_pti import RealisticMattressState
 from scipy.ndimage import zoom
 
@@ -84,7 +84,7 @@ def run_fem_comparison():
     # Configurations to test
     configs = {
         'Standard Foam': {'type': 'foam'},
-        'Evolved Optimal': {'type': 'apm', 'pattern': EvolvedOptimalPattern()},
+        'Optimal': {'type': 'apm', 'pattern': OptimalPattern()},
     }
 
     # Add a couple of key patterns

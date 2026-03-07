@@ -17,7 +17,7 @@ from multidynamic_mattress_optimization import (
     SMPLBodyPressureModel, MultiDynamicAirMattress,
     MOVEMENT_PATTERNS, CAPILLARY_CLOSING_PRESSURE
 )
-from evolved_pattern import EvolvedOptimalPattern
+from evolved_pattern import OptimalPattern
 
 # Physical air mattress constraints
 TRANSITION_TIME = 45.0  # Seconds for cell to fully inflate/deflate
@@ -97,7 +97,7 @@ def create_pti_comparison():
         display_name = pattern.name if hasattr(pattern, 'name') else name.replace('_', ' ').title()
         configs[display_name] = {'type': 'apm', 'pattern': pattern, 'key': name}
 
-    configs['Evolved Optimal'] = {'type': 'apm', 'pattern': EvolvedOptimalPattern(), 'key': 'evolved_optimal'}
+    configs['Optimal'] = {'type': 'apm', 'pattern': OptimalPattern(), 'key': 'optimal'}
 
     print(f"\nTesting {len(configs)} configurations:")
     for name in configs:

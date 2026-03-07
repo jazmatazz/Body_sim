@@ -10,11 +10,11 @@ Generation: 0
 import numpy as np
 
 
-class EvolvedOptimalPattern:
-    """Evolved optimal pressure redistribution pattern."""
+class OptimalPattern:
+    """Optimal pressure redistribution pattern (genetically evolved)."""
 
-    name = "Evolved Optimal"
-    pattern_type = "evolved"
+    name = "Optimal"
+    pattern_type = "optimal"
 
     # Region parameters (evolved)
     REGIONS = {
