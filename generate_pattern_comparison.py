@@ -23,7 +23,7 @@ PATTERNS = [
     ('Row Groups (1)', RowGroups(group_size=1), 0.0),
     ('Row Groups (2)', RowGroups(group_size=2), 0.0),
     ('Row Groups (3)', RowGroups(group_size=3), 0.0),
-    ('Multi-Frequency', MultiFrequencyZone(), 0.0),
+    ('Multi-Frequency', MultiFrequencyZone(), 0.17),
     ('Sequential Rows', SequentialRows(), 0.3),
 ]
 
@@ -50,8 +50,8 @@ def create_pattern_comparison():
         for i in range(grid_rows):
             for j in range(grid_cols):
                 val = pattern.get_cell_state(i, j, grid_rows, grid_cols, phase)
-                # Zone-Based uses gradient to show different zones
-                if name == 'Zone-Based Adaptive':
+                # Zone-Based and Multi-Frequency use gradient to show different zones
+                if name in ['Zone-Based Adaptive', 'Multi-Frequency']:
                     pattern_grid[i, j] = val
                 else:
                     pattern_grid[i, j] = 1.0 if val > 0.5 else 0.0
