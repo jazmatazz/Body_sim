@@ -746,34 +746,6 @@ def create_animation():
         margin=dict(l=0, r=0, t=80, b=100),
     )
 
-    # Add legend annotation
-    fig.add_annotation(
-        x=0.02, y=0.98,
-        xref='paper', yref='paper',
-        text='<b>Optimal Pattern:</b><br>'
-             '• Avg pressure: 44.1 mmHg<br>'
-             '• Time to damage: 4.3 hours<br>'
-             '• 51% damage reduction vs manual<br>'
-             '• Body-aligned cell regions<br>'
-             '• Region-specific wave types<br><br>'
-             '<b>30° Incline Effects:</b><br>'
-             '• Weight shifts to sacrum<br>'
-             '• Shear stress from gravity<br>'
-             '• Increased pressure at hinge<br><br>'
-             '<b>Mattress Colors:</b><br>'
-             '🟢 Green = Deflated (relief)<br>'
-             '🟠 Orange = Inflated (support)<br><br>'
-             '<b>Body Deformation:</b><br>'
-             '🟤 Skin tone = No compression<br>'
-             '🔴 Red = High compression',
-        showarrow=False,
-        font=dict(size=11),
-        align='left',
-        bgcolor='rgba(255,255,255,0.9)',
-        bordercolor='gray',
-        borderwidth=1
-    )
-
     return fig
 
 
