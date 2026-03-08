@@ -5,97 +5,84 @@ import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-# Import all pattern classes
 from multidynamic_mattress_optimization import (
     AlternatingCheckerboard, WaveHorizontal, WaveVertical,
     ZoneBased, CircularWave, DiagonalWave, RowGroups,
     MultiFrequencyZone, SequentialRows
 )
-from evolved_pattern import OptimalPattern
 
 
-# All patterns to visualize
-PATTERNS = {
-    'alternating': AlternatingCheckerboard(),
-    'wave_horizontal': WaveHorizontal(wave_width=3),
-    'wave_vertical': WaveVertical(wave_width=2),
-    'zone_based': ZoneBased(),
-    'circular': CircularWave(),
-    'diagonal': DiagonalWave(),
-    'row_groups_1': RowGroups(group_size=1),
-    'row_groups_2': RowGroups(group_size=2),
-    'row_groups_3': RowGroups(group_size=3),
-    'multi_frequency': MultiFrequencyZone(),
-    'sequential_rows': SequentialRows(),
-    'optimal': OptimalPattern(),
-}
+# Patterns with best phase to show their behavior clearly
+PATTERNS = [
+    ('Alternating Checkerboard', AlternatingCheckerboard(), 0.0),
+    ('Horizontal Wave', WaveHorizontal(wave_width=3), 0.25),
+    ('Vertical Wave', WaveVertical(wave_width=2), 0.25),
+    ('Zone-Based Adaptive', ZoneBased(), 0.2),
+    ('Circular Wave', CircularWave(), 0.3),
+    ('Diagonal Wave', DiagonalWave(), 0.25),
+    ('Row Groups (1)', RowGroups(group_size=1), 0.0),
+    ('Row Groups (2)', RowGroups(group_size=2), 0.0),
+    ('Row Groups (3)', RowGroups(group_size=3), 0.0),
+    ('Multi-Frequency', MultiFrequencyZone(), 0.0),
+    ('Sequential Rows', SequentialRows(), 0.3),
+]
 
 
 def create_pattern_comparison():
-    """Create visualization comparing all movement patterns."""
-    patterns = list(PATTERNS.keys())
-    n_patterns = len(patterns)
+    """Create simple grid visualization of all patterns."""
+    n_patterns = len(PATTERNS)
     cols = 4
     rows = (n_patterns + cols - 1) // cols
-    
+
     fig = make_subplots(
         rows=rows, cols=cols,
-        subplot_titles=[PATTERNS[p].name for p in patterns],
-        vertical_spacing=0.08,
+        subplot_titles=[name for name, _, _ in PATTERNS],
+        vertical_spacing=0.12,
         horizontal_spacing=0.05,
     )
-    
-    # Visualize each pattern at 25% phase
-    test_rows, test_cols = 40, 18  # Grid representing mattress
-    
-    for idx, pattern_name in enumerate(patterns):
-        pattern = PATTERNS[pattern_name]
-        pattern_grid = np.zeros((test_rows, test_cols))
-        
-        phase = 0.25
-        for i in range(test_rows):
-            for j in range(test_cols):
-                pattern_grid[i, j] = pattern.get_cell_state(
-                    i, j, test_rows, test_cols, phase
-                )
-        
+
+    # Grid size
+    grid_rows, grid_cols = 40, 18  # Higher resolution
+
+    for idx, (name, pattern, phase) in enumerate(PATTERNS):
+        pattern_grid = np.zeros((grid_rows, grid_cols))
+
+        for i in range(grid_rows):
+            for j in range(grid_cols):
+                val = pattern.get_cell_state(i, j, grid_rows, grid_cols, phase)
+                # Zone-Based uses gradient to show different zones
+                if name == 'Zone-Based Adaptive':
+                    pattern_grid[i, j] = val
+                else:
+                    pattern_grid[i, j] = 1.0 if val > 0.5 else 0.0
+
         row = idx // cols + 1
         col = idx % cols + 1
-        
+
         fig.add_trace(go.Heatmap(
             z=pattern_grid,
-            colorscale='RdYlGn',
-            showscale=(idx == 0),
+            colorscale=[[0, '#e74c3c'], [1, '#27ae60']],
+            showscale=False,
             zmin=0,
             zmax=1,
-            colorbar=dict(
-                title='Inflation',
-                x=1.02,
-                tickvals=[0, 0.5, 1],
-                ticktext=['Deflated', 'Mid', 'Inflated']
-            ) if idx == 0 else None,
         ), row=row, col=col)
-    
+
     fig.update_layout(
         title=dict(
-            text='<b>Movement Pattern Comparison</b><br>'
-                 '<sup>Green = Inflated (support), Red = Deflated (relief) | Showing 25% through cycle</sup>',
+            text='<b>APM Movement Patterns</b><br>'
+                 '<sup>Green = Inflated | Red = Deflated</sup>',
             x=0.5,
-            font=dict(size=18),
+            font=dict(size=20),
         ),
-        height=250 * rows,
-        width=1400,
+        height=280 * rows,
+        width=900,
     )
-    
-    # Hide axis labels for cleaner look
-    fig.update_xaxes(showticklabels=False)
-    fig.update_yaxes(showticklabels=False)
-    
+
+    fig.update_xaxes(showticklabels=False, showgrid=False)
+    fig.update_yaxes(showticklabels=False, showgrid=False)
+
     fig.write_html('pattern_comparison.html', include_plotlyjs=True, full_html=True)
-    print(f"Saved: pattern_comparison.html")
-    print(f"Total patterns: {n_patterns}")
-    
-    return fig
+    print(f"Saved: pattern_comparison.html ({n_patterns} patterns)")
 
 
 if __name__ == "__main__":
