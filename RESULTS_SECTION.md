@@ -19,7 +19,7 @@
 | Row Groups (size=3) | 42.70 | 4.40 | 2.70 | 6.61 | 1.87 |
 | Multi-Frequency Zones | 65.30 | 1.80 | 1.00 | 10.12 | 4.39 |
 | Sequential Rows | 65.30 | 1.80 | 1.00 | 10.12 | 4.39 |
-| **Evolved Optimal** | **39.90** | **7.60** | **5.20** | **6.16** | **1.07** |
+| **Optimal** | **39.90** | **7.60** | **5.20** | **6.16** | **1.07** |
 
 ---
 
@@ -40,7 +40,7 @@
 | Row Groups (size=3) | -34.6 | +144.4 | +170.0 | -34.7 | -57.4 |
 | Multi-Frequency Zones | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 |
 | Sequential Rows | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 |
-| **Evolved Optimal** | **-38.9** | **+322.2** | **+420.0** | **-39.1** | **-75.6** |
+| **Optimal** | **-38.9** | **+322.2** | **+420.0** | **-39.1** | **-75.6** |
 
 ---
 
@@ -77,7 +77,7 @@
 | Row Groups (size=3) | 270.0 | 57.4 |
 | Multi-Frequency Zones | 100.0 | 0.0 |
 | Sequential Rows | 100.0 | 0.0 |
-| **Evolved Optimal** | **520.0** | **75.6** |
+| **Optimal** | **520.0** | **75.6** |
 
 ---
 
@@ -106,21 +106,21 @@
 
 ### Pressure Distribution
 
-Average interface pressure varied across mattress configurations, ranging from 39.90 mmHg to 65.30 mmHg. Standard Foam produced an average pressure of 65.30 mmHg. Eight of the twelve APM configurations showed no reduction in average pressure compared to Standard Foam (0.0% change). Four configurations demonstrated reduced pressure: Zone-Based Adaptive (-30.6%), Row Groups size=2 (-27.4%), Row Groups size=3 (-34.6%), and Evolved Optimal (-38.9%).
+Average interface pressure varied across mattress configurations, ranging from 39.90 mmHg to 65.30 mmHg. Standard Foam produced an average pressure of 65.30 mmHg. Eight of the twelve APM configurations showed no reduction in average pressure compared to Standard Foam (0.0% change). Four configurations demonstrated reduced pressure: Zone-Based Adaptive (-30.6%), Row Groups size=2 (-27.4%), Row Groups size=3 (-34.6%), and Optimal (-38.9%).
 
 ### Time to Tissue Injury
 
-Time to surface damage ranged from 1.80 hours to 7.60 hours across configurations. Standard Foam and eight APM patterns showed identical surface damage times of 1.80 hours. The Evolved Optimal configuration showed the longest time to surface damage at 7.60 hours, representing a 322.2% increase compared to Standard Foam.
+Time to surface damage ranged from 1.80 hours to 7.60 hours across configurations. Standard Foam and eight APM patterns showed identical surface damage times of 1.80 hours. The Optimal configuration showed the longest time to surface damage at 7.60 hours, representing a 322.2% increase compared to Standard Foam.
 
-Time to deep tissue injury (DTI) followed a similar pattern. Standard Foam showed DTI at 1.00 hours. The Evolved Optimal configuration extended DTI time to 5.20 hours, a 420.0% increase. Zone-Based Adaptive (2.80 hours, +180.0%) and Row Groups size=3 (2.70 hours, +170.0%) also showed substantial increases.
+Time to deep tissue injury (DTI) followed a similar pattern. Standard Foam showed DTI at 1.00 hours. The Optimal configuration extended DTI time to 5.20 hours, a 420.0% increase. Zone-Based Adaptive (2.80 hours, +180.0%) and Row Groups size=3 (2.70 hours, +170.0%) also showed substantial increases.
 
 ### Strain-Time Injury Index (STII)
 
-STII values ranged from 6.16 to 10.12 across configurations. Standard Foam produced an STII of 10.12. The Evolved Optimal configuration achieved the lowest STII at 6.16, representing a 39.1% decrease from baseline. Other effective configurations included Row Groups size=3 (STII = 6.61, -34.7%) and Zone-Based Adaptive (STII = 6.96, -31.2%).
+STII values ranged from 6.16 to 10.12 across configurations. Standard Foam produced an STII of 10.12. The Optimal configuration achieved the lowest STII at 6.16, representing a 39.1% decrease from baseline. Other effective configurations included Row Groups size=3 (STII = 6.61, -34.7%) and Zone-Based Adaptive (STII = 6.96, -31.2%).
 
 ### Damage Accumulation
 
-Cumulative damage fraction after 8 hours ranged from 1.07 to 4.39. Standard Foam accumulated a damage fraction of 4.39. The Evolved Optimal configuration showed the lowest damage accumulation at 1.07, representing a 75.6% reduction. Zone-Based Adaptive (1.67, -62.0%), Row Groups size=2 (1.79, -59.2%), and Row Groups size=3 (1.87, -57.4%) also demonstrated substantial reductions in damage accumulation.
+Cumulative damage fraction after 8 hours ranged from 1.07 to 4.39. Standard Foam accumulated a damage fraction of 4.39. The Optimal configuration showed the lowest damage accumulation at 1.07, representing a 75.6% reduction. Zone-Based Adaptive (1.67, -62.0%), Row Groups size=2 (1.79, -59.2%), and Row Groups size=3 (1.87, -57.4%) also demonstrated substantial reductions in damage accumulation.
 
 ### Statistical Analysis
 
@@ -134,15 +134,15 @@ One-way ANOVA comparing basic APM patterns (n=8, mean damage = 4.36) to optimize
 
 ### Efficiency
 
-DTI efficiency ranged from 100.0% (no improvement over foam) to 520.0% (Evolved Optimal). Eight configurations showed 100.0% efficiency, indicating no improvement over Standard Foam. The Evolved Optimal configuration achieved 520.0% DTI efficiency, meaning it extended the time to deep tissue injury by a factor of 5.2.
+DTI efficiency ranged from 100.0% (no improvement over foam) to 520.0% (Optimal). Eight configurations showed 100.0% efficiency, indicating no improvement over Standard Foam. The Optimal configuration achieved 520.0% DTI efficiency, meaning it extended the time to deep tissue injury by a factor of 5.2.
 
-Damage reduction efficiency ranged from 0.0% to 75.6%. The Evolved Optimal configuration achieved the highest damage reduction efficiency at 75.6%, followed by Zone-Based Adaptive (62.0%), Row Groups size=2 (59.2%), and Row Groups size=3 (57.4%).
+Damage reduction efficiency ranged from 0.0% to 75.6%. The Optimal configuration achieved the highest damage reduction efficiency at 75.6%, followed by Zone-Based Adaptive (62.0%), Row Groups size=2 (59.2%), and Row Groups size=3 (57.4%).
 
 ### Summary of Key Findings
 
 - 8 of 12 APM patterns showed no improvement over Standard Foam (0.0% change in all metrics)
 - 4 APM patterns showed measurable improvements (27-39% pressure reduction)
-- Evolved Optimal achieved the best performance across all metrics:
+- Optimal achieved the best performance across all metrics:
   - Pressure: 39.90 mmHg (-38.9%)
   - Time to Surface Damage: 7.60 hours (+322.2%)
   - Time to DTI: 5.20 hours (+420.0%)

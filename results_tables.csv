@@ -14,7 +14,7 @@ Row Groups (size=2),47.40,4.70,1.90,7.33,1.79
 Row Groups (size=3),42.70,4.40,2.70,6.61,1.87
 Multi-Frequency Zones,65.30,1.80,1.00,10.12,4.39
 Sequential Rows,65.30,1.80,1.00,10.12,4.39
-Evolved Optimal,39.90,7.60,5.20,6.16,1.07
+Optimal,39.90,7.60,5.20,6.16,1.07
 
 
 TABLE 2: PERCENT CHANGE FROM BASELINE
@@ -33,7 +33,7 @@ Row Groups (size=2),-27.40,161.10,90.00,-27.60,-59.20
 Row Groups (size=3),-34.60,144.40,170.00,-34.70,-57.40
 Multi-Frequency Zones,0.00,0.00,0.00,0.00,0.00
 Sequential Rows,0.00,0.00,0.00,0.00,0.00
-Evolved Optimal,-38.90,322.20,420.00,-39.10,-75.60
+Optimal,-38.90,322.20,420.00,-39.10,-75.60
 
 
 TABLE 3: STATISTICAL ANALYSIS
@@ -66,4 +66,4 @@ Row Groups (size=2),190.00,59.20
 Row Groups (size=3),270.00,57.40
 Multi-Frequency Zones,100.00,0.00
 Sequential Rows,100.00,0.00
-Evolved Optimal,520.00,75.60
+Optimal,520.00,75.60
