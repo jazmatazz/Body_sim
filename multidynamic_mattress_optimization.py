@@ -21,6 +21,8 @@ from typing import Dict, List, Tuple, Optional
 import warnings
 warnings.filterwarnings('ignore')
 
+from evolved_pattern import OptimalPattern
+
 # =============================================================================
 # PHYSICAL CONSTANTS - EVIDENCE-BASED VALUES
 # =============================================================================
@@ -1330,6 +1332,7 @@ MOVEMENT_PATTERNS = {
     'row_groups_3': RowGroups(group_size=3),
     'multi_frequency': MultiFrequencyZone(),
     'sequential_rows': SequentialRows(),
+    'optimal': OptimalPattern(),
 }
 
 
