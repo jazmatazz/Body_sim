@@ -1,39 +1,39 @@
 TABLE 1: MATTRESS CONFIGURATION COMPARISON
-Legend: Comparison of 13 mattress configurations over 8-hour simulation. Baseline: Standard Foam. APM = Alternating Pressure Mattress.
+Legend: Comparison of 13 mattress configurations over 8-hour simulation. Baseline: Manual Repositioning (2h). APM = Alternating Pressure Mattress.
 
 Configuration,Pressure (mmHg),Surface Damage (hours),DTI (hours),STII,Damage Fraction
-Standard Foam,65.30,1.80,1.00,10.12,4.39
-Alternating Checkerboard,65.30,1.80,1.00,10.12,4.39
-Horizontal Wave,64.80,1.80,1.00,10.04,4.34
-Vertical Wave,65.30,1.80,1.00,10.12,4.39
-Zone-Based Adaptive,45.30,4.70,2.80,6.96,1.67
-Circular Wave,63.50,1.80,1.00,9.83,4.22
-Diagonal Wave,64.90,1.80,1.00,10.03,4.34
-Row Groups (size=1),65.30,1.80,1.00,10.12,4.39
-Row Groups (size=2),47.40,4.70,1.90,7.33,1.79
-Row Groups (size=3),42.70,4.40,2.70,6.61,1.87
-Multi-Frequency Zones,65.30,1.80,1.00,10.12,4.39
-Sequential Rows,65.30,1.80,1.00,10.12,4.39
-Optimal,39.90,7.60,5.20,6.16,1.07
+Manual Repositioning (2h),52.26,1.4,0.8,8.00,3.71
+Alternating Checkerboard,69.58,1.4,0.8,10.77,5.81
+Horizontal Wave,69.05,1.4,0.8,10.69,5.74
+Vertical Wave,69.58,1.4,0.8,10.77,5.81
+Zone-Based Adaptive,48.29,3.4,1.8,7.42,2.51
+Circular Wave,67.67,1.4,0.8,10.47,5.57
+Diagonal Wave,69.07,1.4,0.8,10.69,5.74
+Row Groups (size=1),69.58,1.4,0.8,10.77,5.81
+Row Groups (size=2),50.52,2.8,1.5,7.80,2.55
+Row Groups (size=3),45.47,3.3,2.4,7.04,2.59
+Multi-Frequency Zones,69.58,1.4,0.8,10.77,5.81
+Sequential Rows,69.58,1.4,0.8,10.77,5.81
+Optimal,44.08,4.3,2.7,6.81,1.83
 
 
 TABLE 2: PERCENT CHANGE FROM BASELINE
 Legend: Negative = improvement (reduction). Positive for Surface/DTI = longer time to injury (improvement).
 
 Configuration,Pressure Change (%),Surface Damage Change (%),DTI Change (%),STII Change (%),Damage Change (%)
-Standard Foam,Baseline,Baseline,Baseline,Baseline,Baseline
-Alternating Checkerboard,0.00,0.00,0.00,0.00,0.00
-Horizontal Wave,-0.80,0.00,0.00,-0.80,-1.10
-Vertical Wave,0.00,0.00,0.00,0.00,0.00
-Zone-Based Adaptive,-30.60,161.10,180.00,-31.20,-62.00
-Circular Wave,-2.80,0.00,0.00,-2.90,-3.90
-Diagonal Wave,-0.60,0.00,0.00,-0.90,-1.10
-Row Groups (size=1),0.00,0.00,0.00,0.00,0.00
-Row Groups (size=2),-27.40,161.10,90.00,-27.60,-59.20
-Row Groups (size=3),-34.60,144.40,170.00,-34.70,-57.40
-Multi-Frequency Zones,0.00,0.00,0.00,0.00,0.00
-Sequential Rows,0.00,0.00,0.00,0.00,0.00
-Optimal,-38.90,322.20,420.00,-39.10,-75.60
+Manual Repositioning (2h),Baseline,Baseline,Baseline,Baseline,Baseline
+Alternating Checkerboard,+33.2,0.0,0.0,+34.6,+56.6
+Horizontal Wave,+32.1,0.0,0.0,+33.6,+54.7
+Vertical Wave,+33.2,0.0,0.0,+34.6,+56.6
+Zone-Based Adaptive,-7.6,+142.9,+125.0,-7.3,-32.3
+Circular Wave,+29.5,0.0,0.0,+30.9,+50.1
+Diagonal Wave,+32.2,0.0,0.0,+33.6,+54.7
+Row Groups (size=1),+33.2,0.0,0.0,+34.6,+56.6
+Row Groups (size=2),-3.3,+100.0,+87.5,-2.5,-31.3
+Row Groups (size=3),-13.0,+135.7,+200.0,-12.0,-30.2
+Multi-Frequency Zones,+33.2,0.0,0.0,+34.6,+56.6
+Sequential Rows,+33.2,0.0,0.0,+34.6,+56.6
+Optimal,-15.7,+207.1,+237.5,-14.9,-50.7
 
 
 TABLE 3: STATISTICAL ANALYSIS
@@ -54,16 +54,16 @@ TABLE 4: EFFICIENCY CALCULATIONS
 Legend: DTI Efficiency = (DTI Time / Baseline) × 100%. Damage Reduction = (1 - Damage/Baseline) × 100%.
 
 Configuration,DTI Efficiency (%),Damage Reduction Efficiency (%)
-Standard Foam,100.00,0.00
-Alternating Checkerboard,100.00,0.00
-Horizontal Wave,100.00,1.10
-Vertical Wave,100.00,0.00
-Zone-Based Adaptive,280.00,62.00
-Circular Wave,100.00,3.90
-Diagonal Wave,100.00,1.10
-Row Groups (size=1),100.00,0.00
-Row Groups (size=2),190.00,59.20
-Row Groups (size=3),270.00,57.40
-Multi-Frequency Zones,100.00,0.00
-Sequential Rows,100.00,0.00
-Optimal,520.00,75.60
+Manual Repositioning (2h),100.0,0.0
+Alternating Checkerboard,100.0,-56.6
+Horizontal Wave,100.0,-54.7
+Vertical Wave,100.0,-56.6
+Zone-Based Adaptive,225.0,32.3
+Circular Wave,100.0,-50.1
+Diagonal Wave,100.0,-54.7
+Row Groups (size=1),100.0,-56.6
+Row Groups (size=2),187.5,31.3
+Row Groups (size=3),300.0,30.2
+Multi-Frequency Zones,100.0,-56.6
+Sequential Rows,100.0,-56.6
+Optimal,337.5,50.7

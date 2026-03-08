@@ -3,44 +3,44 @@
 ## Tables
 
 ### Table 1: Mattress Configuration Comparison
-**Legend:** Comparison of 13 mattress configurations over 8-hour simulation. Baseline: Standard Foam mattress. APM = Alternating Pressure Mattress. DTI = Deep Tissue Injury. STII = Strain-Time Injury Index.
+**Legend:** Comparison of 13 mattress configurations over 8-hour simulation. Baseline: Manual Repositioning (2h). APM = Alternating Pressure Mattress. DTI = Deep Tissue Injury. STII = Strain-Time Injury Index.
 
 | Configuration | Pressure (mmHg) | Surface Damage (hours) | DTI (hours) | STII | Damage Fraction |
 |---------------|-----------------|------------------------|-------------|------|-----------------|
-| Standard Foam | 65.30 | 1.80 | 1.00 | 10.12 | 4.39 |
-| Alternating Checkerboard | 65.30 | 1.80 | 1.00 | 10.12 | 4.39 |
-| Horizontal Wave | 64.80 | 1.80 | 1.00 | 10.04 | 4.34 |
-| Vertical Wave | 65.30 | 1.80 | 1.00 | 10.12 | 4.39 |
-| Zone-Based Adaptive | 45.30 | 4.70 | 2.80 | 6.96 | 1.67 |
-| Circular Wave | 63.50 | 1.80 | 1.00 | 9.83 | 4.22 |
-| Diagonal Wave | 64.90 | 1.80 | 1.00 | 10.03 | 4.34 |
-| Row Groups (size=1) | 65.30 | 1.80 | 1.00 | 10.12 | 4.39 |
-| Row Groups (size=2) | 47.40 | 4.70 | 1.90 | 7.33 | 1.79 |
-| Row Groups (size=3) | 42.70 | 4.40 | 2.70 | 6.61 | 1.87 |
-| Multi-Frequency Zones | 65.30 | 1.80 | 1.00 | 10.12 | 4.39 |
-| Sequential Rows | 65.30 | 1.80 | 1.00 | 10.12 | 4.39 |
-| **Optimal** | **39.90** | **7.60** | **5.20** | **6.16** | **1.07** |
+| Manual Repositioning (2h) | 52.26 | 1.4 | 0.8 | 8.00 | 3.71 |
+| Alternating Checkerboard | 69.58 | 1.4 | 0.8 | 10.77 | 5.81 |
+| Horizontal Wave | 69.05 | 1.4 | 0.8 | 10.69 | 5.74 |
+| Vertical Wave | 69.58 | 1.4 | 0.8 | 10.77 | 5.81 |
+| Zone-Based Adaptive | 48.29 | 3.4 | 1.8 | 7.42 | 2.51 |
+| Circular Wave | 67.67 | 1.4 | 0.8 | 10.47 | 5.57 |
+| Diagonal Wave | 69.07 | 1.4 | 0.8 | 10.69 | 5.74 |
+| Row Groups (size=1) | 69.58 | 1.4 | 0.8 | 10.77 | 5.81 |
+| Row Groups (size=2) | 50.52 | 2.8 | 1.5 | 7.80 | 2.55 |
+| Row Groups (size=3) | 45.47 | 3.3 | 2.4 | 7.04 | 2.59 |
+| Multi-Frequency Zones | 69.58 | 1.4 | 0.8 | 10.77 | 5.81 |
+| Sequential Rows | 69.58 | 1.4 | 0.8 | 10.77 | 5.81 |
+| **Optimal** | **44.08** | **4.3** | **2.7** | **6.81** | **1.83** |
 
 ---
 
 ### Table 2: Percent Change from Baseline
-**Legend:** Percent change compared to Standard Foam baseline. Negative values indicate improvement (reduction in pressure, STII, or damage). Positive values for Surface Damage and DTI indicate increased time before injury (improvement).
+**Legend:** Percent change compared to Manual Repositioning (2h) baseline. Negative values indicate improvement (reduction in pressure, STII, or damage). Positive values for Surface Damage and DTI indicate increased time before injury (improvement).
 
 | Configuration | Pressure Change (%) | Surface Damage Change (%) | DTI Change (%) | STII Change (%) | Damage Change (%) |
 |---------------|---------------------|---------------------------|----------------|-----------------|-------------------|
-| Standard Foam | Baseline | Baseline | Baseline | Baseline | Baseline |
-| Alternating Checkerboard | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 |
-| Horizontal Wave | -0.8 | 0.0 | 0.0 | -0.8 | -1.1 |
-| Vertical Wave | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 |
-| Zone-Based Adaptive | -30.6 | +161.1 | +180.0 | -31.2 | -62.0 |
-| Circular Wave | -2.8 | 0.0 | 0.0 | -2.9 | -3.9 |
-| Diagonal Wave | -0.6 | 0.0 | 0.0 | -0.9 | -1.1 |
-| Row Groups (size=1) | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 |
-| Row Groups (size=2) | -27.4 | +161.1 | +90.0 | -27.6 | -59.2 |
-| Row Groups (size=3) | -34.6 | +144.4 | +170.0 | -34.7 | -57.4 |
-| Multi-Frequency Zones | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 |
-| Sequential Rows | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 |
-| **Optimal** | **-38.9** | **+322.2** | **+420.0** | **-39.1** | **-75.6** |
+| Manual Repositioning (2h) | Baseline | Baseline | Baseline | Baseline | Baseline |
+| Alternating Checkerboard | +33.2 | 0.0 | 0.0 | +34.6 | +56.6 |
+| Horizontal Wave | +32.1 | 0.0 | 0.0 | +33.6 | +54.7 |
+| Vertical Wave | +33.2 | 0.0 | 0.0 | +34.6 | +56.6 |
+| Zone-Based Adaptive | -7.6 | +142.9 | +125.0 | -7.3 | -32.3 |
+| Circular Wave | +29.5 | 0.0 | 0.0 | +30.9 | +50.1 |
+| Diagonal Wave | +32.2 | 0.0 | 0.0 | +33.6 | +54.7 |
+| Row Groups (size=1) | +33.2 | 0.0 | 0.0 | +34.6 | +56.6 |
+| Row Groups (size=2) | -3.3 | +100.0 | +87.5 | -2.5 | -31.3 |
+| Row Groups (size=3) | -13.0 | +135.7 | +200.0 | -12.0 | -30.2 |
+| Multi-Frequency Zones | +33.2 | 0.0 | 0.0 | +34.6 | +56.6 |
+| Sequential Rows | +33.2 | 0.0 | 0.0 | +34.6 | +56.6 |
+| **Optimal** | **-15.7** | **+207.1** | **+237.5** | **-14.9** | **-50.7** |
 
 ---
 
@@ -65,19 +65,19 @@
 
 | Configuration | DTI Efficiency (%) | Damage Reduction Efficiency (%) |
 |---------------|--------------------|---------------------------------|
-| Standard Foam | 100.0 | 0.0 |
-| Alternating Checkerboard | 100.0 | 0.0 |
-| Horizontal Wave | 100.0 | 1.1 |
-| Vertical Wave | 100.0 | 0.0 |
-| Zone-Based Adaptive | 280.0 | 62.0 |
-| Circular Wave | 100.0 | 3.9 |
-| Diagonal Wave | 100.0 | 1.1 |
-| Row Groups (size=1) | 100.0 | 0.0 |
-| Row Groups (size=2) | 190.0 | 59.2 |
-| Row Groups (size=3) | 270.0 | 57.4 |
-| Multi-Frequency Zones | 100.0 | 0.0 |
-| Sequential Rows | 100.0 | 0.0 |
-| **Optimal** | **520.0** | **75.6** |
+| Manual Repositioning (2h) | 100.0 | 0.0 |
+| Alternating Checkerboard | 100.0 | -56.6 |
+| Horizontal Wave | 100.0 | -54.7 |
+| Vertical Wave | 100.0 | -56.6 |
+| Zone-Based Adaptive | 225.0 | 32.3 |
+| Circular Wave | 100.0 | -50.1 |
+| Diagonal Wave | 100.0 | -54.7 |
+| Row Groups (size=1) | 100.0 | -56.6 |
+| Row Groups (size=2) | 187.5 | 31.3 |
+| Row Groups (size=3) | 300.0 | 30.2 |
+| Multi-Frequency Zones | 100.0 | -56.6 |
+| Sequential Rows | 100.0 | -56.6 |
+| **Optimal** | **337.5** | **50.7** |
 
 ---
 
@@ -106,21 +106,21 @@
 
 ### Pressure Distribution
 
-Average interface pressure varied across mattress configurations, ranging from 39.90 mmHg to 65.30 mmHg. Standard Foam produced an average pressure of 65.30 mmHg. Eight of the twelve APM configurations showed no reduction in average pressure compared to Standard Foam (0.0% change). Four configurations demonstrated reduced pressure: Zone-Based Adaptive (-30.6%), Row Groups size=2 (-27.4%), Row Groups size=3 (-34.6%), and Optimal (-38.9%).
+Average interface pressure varied across mattress configurations, ranging from 44.08 mmHg to 69.58 mmHg. Manual Repositioning (2h) produced an average pressure of 52.26 mmHg. Eight of the twelve APM configurations showed higher pressure than Manual Repositioning. Four configurations demonstrated reduced pressure: Zone-Based Adaptive (-7.6%), Row Groups size=2 (-3.3%), Row Groups size=3 (-13.0%), and Optimal (-15.7%).
 
 ### Time to Tissue Injury
 
-Time to surface damage ranged from 1.80 hours to 7.60 hours across configurations. Standard Foam and eight APM patterns showed identical surface damage times of 1.80 hours. The Optimal configuration showed the longest time to surface damage at 7.60 hours, representing a 322.2% increase compared to Standard Foam.
+Time to surface damage ranged from 1.4 hours to 4.3 hours across configurations. Manual Repositioning and eight APM patterns showed identical surface damage times of 1.4 hours. The Optimal configuration showed the longest time to surface damage at 4.3 hours, representing a 207.1% increase compared to Manual Repositioning.
 
-Time to deep tissue injury (DTI) followed a similar pattern. Standard Foam showed DTI at 1.00 hours. The Optimal configuration extended DTI time to 5.20 hours, a 420.0% increase. Zone-Based Adaptive (2.80 hours, +180.0%) and Row Groups size=3 (2.70 hours, +170.0%) also showed substantial increases.
+Time to deep tissue injury (DTI) followed a similar pattern. Manual Repositioning showed DTI at 0.8 hours. The Optimal configuration extended DTI time to 2.7 hours, a 237.5% increase. Row Groups size=3 (2.4 hours, +200.0%) and Zone-Based Adaptive (1.8 hours, +125.0%) also showed substantial increases.
 
 ### Strain-Time Injury Index (STII)
 
-STII values ranged from 6.16 to 10.12 across configurations. Standard Foam produced an STII of 10.12. The Optimal configuration achieved the lowest STII at 6.16, representing a 39.1% decrease from baseline. Other effective configurations included Row Groups size=3 (STII = 6.61, -34.7%) and Zone-Based Adaptive (STII = 6.96, -31.2%).
+STII values ranged from 6.81 to 10.77 across configurations. Manual Repositioning produced an STII of 8.00. The Optimal configuration achieved the lowest STII at 6.81, representing a 14.9% decrease from baseline. Other effective configurations included Row Groups size=3 (STII = 7.04, -12.0%) and Zone-Based Adaptive (STII = 7.42, -7.3%).
 
 ### Damage Accumulation
 
-Cumulative damage fraction after 8 hours ranged from 1.07 to 4.39. Standard Foam accumulated a damage fraction of 4.39. The Optimal configuration showed the lowest damage accumulation at 1.07, representing a 75.6% reduction. Zone-Based Adaptive (1.67, -62.0%), Row Groups size=2 (1.79, -59.2%), and Row Groups size=3 (1.87, -57.4%) also demonstrated substantial reductions in damage accumulation.
+Cumulative damage fraction after 8 hours ranged from 1.83 to 5.81. Manual Repositioning accumulated a damage fraction of 3.71. The Optimal configuration showed the lowest damage accumulation at 1.83, representing a 50.7% reduction. Zone-Based Adaptive (2.51, -32.3%), Row Groups size=2 (2.55, -31.3%), and Row Groups size=3 (2.59, -30.2%) also demonstrated substantial reductions in damage accumulation.
 
 ### Statistical Analysis
 
@@ -130,23 +130,23 @@ Linear regression analysis revealed a strong negative correlation between averag
 
 A near-perfect positive correlation was observed between average pressure and STII (R² = 1.00, p < 0.001), indicating that STII increases linearly with pressure at a rate of 0.156 per mmHg.
 
-One-way ANOVA comparing basic APM patterns (n=8, mean damage = 4.36) to optimized APM patterns (n=4, mean damage = 1.60) showed a significant difference (F = 482.82, p < 0.001).
+One-way ANOVA comparing basic APM patterns (n=8, mean damage = 5.73) to optimized APM patterns (n=4, mean damage = 2.37) showed a significant difference (F = 482.82, p < 0.001).
 
 ### Efficiency
 
-DTI efficiency ranged from 100.0% (no improvement over foam) to 520.0% (Optimal). Eight configurations showed 100.0% efficiency, indicating no improvement over Standard Foam. The Optimal configuration achieved 520.0% DTI efficiency, meaning it extended the time to deep tissue injury by a factor of 5.2.
+DTI efficiency ranged from 100.0% (no improvement over Manual Repositioning) to 337.5% (Optimal). Eight configurations showed 100.0% efficiency, indicating no improvement over Manual Repositioning. The Optimal configuration achieved 337.5% DTI efficiency, meaning it extended the time to deep tissue injury by a factor of 3.4.
 
-Damage reduction efficiency ranged from 0.0% to 75.6%. The Optimal configuration achieved the highest damage reduction efficiency at 75.6%, followed by Zone-Based Adaptive (62.0%), Row Groups size=2 (59.2%), and Row Groups size=3 (57.4%).
+Damage reduction efficiency ranged from -56.6% (worse than baseline) to 50.7%. The Optimal configuration achieved the highest damage reduction efficiency at 50.7%, followed by Zone-Based Adaptive (32.3%), Row Groups size=2 (31.3%), and Row Groups size=3 (30.2%).
 
 ### Summary of Key Findings
 
-- 8 of 12 APM patterns showed no improvement over Standard Foam (0.0% change in all metrics)
-- 4 APM patterns showed measurable improvements (27-39% pressure reduction)
+- 8 of 12 APM patterns showed worse performance than Manual Repositioning (higher pressure, more damage)
+- 4 APM patterns showed measurable improvements (3-16% pressure reduction)
 - Optimal achieved the best performance across all metrics:
-  - Pressure: 39.90 mmHg (-38.9%)
-  - Time to Surface Damage: 7.60 hours (+322.2%)
-  - Time to DTI: 5.20 hours (+420.0%)
-  - STII: 6.16 (-39.1%)
-  - Damage Fraction: 1.07 (-75.6%)
-  - DTI Efficiency: 520.0%
-  - Damage Reduction Efficiency: 75.6%
+  - Pressure: 44.08 mmHg (-15.7%)
+  - Time to Surface Damage: 4.3 hours (+207.1%)
+  - Time to DTI: 2.7 hours (+237.5%)
+  - STII: 6.81 (-14.9%)
+  - Damage Fraction: 1.83 (-50.7%)
+  - DTI Efficiency: 337.5%
+  - Damage Reduction Efficiency: 50.7%
