@@ -601,16 +601,6 @@ def create_zone_labels():
         hoverinfo='skip'
     ))
 
-    # Incline angle indicator
-    traces.append(go.Scatter3d(
-        x=[5], y=[hinge_y - 30], z=[25],
-        mode='text',
-        text=[f'<b>30° Incline</b><br>Weight shifts<br>to sacrum'],
-        textfont=dict(size=10, color='red'),
-        showlegend=False,
-        hoverinfo='skip'
-    ))
-
     return traces
 
 
