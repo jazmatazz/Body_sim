@@ -568,39 +568,7 @@ def create_zone_labels():
         return y, z
 
     traces = []
-
-    # Sacrum label (most critical with incline)
-    sacrum_y, sacrum_z = get_label_pos(90, CELL_HEIGHT_MAX + 25)
-    traces.append(go.Scatter3d(
-        x=[45], y=[sacrum_y], z=[sacrum_z],
-        mode='text',
-        text=['<b>SACRUM</b><br>Highest pressure<br>with 30° incline'],
-        textfont=dict(size=11, color='#ff4444'),
-        showlegend=False,
-        hoverinfo='skip'
-    ))
-
-    # Head label
-    head_y, head_z = get_label_pos(10, CELL_HEIGHT_MAX + 20)
-    traces.append(go.Scatter3d(
-        x=[45], y=[head_y], z=[head_z],
-        mode='text',
-        text=['HEAD<br>(elevated)'],
-        textfont=dict(size=10, color='#666666'),
-        showlegend=False,
-        hoverinfo='skip'
-    ))
-
-    # Heels label
-    traces.append(go.Scatter3d(
-        x=[45], y=[195], z=[CELL_HEIGHT_MAX + 15],
-        mode='text',
-        text=['HEELS<br>High pressure'],
-        textfont=dict(size=10, color='#ff8844'),
-        showlegend=False,
-        hoverinfo='skip'
-    ))
-
+    # Body part labels removed for cleaner visualization
     return traces
 
 
@@ -734,6 +702,34 @@ def create_animation():
         height=900,
         showlegend=False,
         margin=dict(l=0, r=0, t=80, b=100),
+    )
+
+    # Add legend annotation
+    fig.add_annotation(
+        x=0.02, y=0.98,
+        xref='paper', yref='paper',
+        text='<b>Optimal Pattern:</b><br>'
+             '• Avg pressure: 44.1 mmHg<br>'
+             '• Time to damage: 4.3 hours<br>'
+             '• 51% damage reduction vs manual<br>'
+             '• Body-aligned cell regions<br>'
+             '• Region-specific wave types<br><br>'
+             '<b>30° Incline Effects:</b><br>'
+             '• Weight shifts to sacrum<br>'
+             '• Shear stress from gravity<br>'
+             '• Increased pressure at hinge<br><br>'
+             '<b>Mattress Colors:</b><br>'
+             '🟢 Green = Deflated (relief)<br>'
+             '🟠 Orange = Inflated (support)<br><br>'
+             '<b>Body Deformation:</b><br>'
+             '🟤 Skin tone = No compression<br>'
+             '🔴 Red = High compression',
+        showarrow=False,
+        font=dict(size=11),
+        align='left',
+        bgcolor='rgba(255,255,255,0.9)',
+        bordercolor='gray',
+        borderwidth=1
     )
 
     return fig
